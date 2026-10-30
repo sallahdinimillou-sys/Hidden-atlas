@@ -74,10 +74,7 @@ export const ImageLightboxModal: React.FC<ImageLightboxModalProps> = ({
   if (!isOpen || images.length === 0) return null;
 
   const currentImage = images[currentIndex];
-  // Request higher resolution for full lightbox view
-  const highResSrc = currentImage?.includes('images.unsplash.com')
-    ? `${currentImage.split('?')[0]}?auto=format&fit=crop&w=1920&q=85`
-    : currentImage;
+  const highResSrc = currentImage;
 
   return (
     <div

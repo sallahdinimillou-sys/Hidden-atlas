@@ -50,7 +50,8 @@ import {
   updateSiteSettings,
   reorderActivitiesInFirestore,
   DEFAULT_SITE_SETTINGS,
-  fetchActivityImages
+  fetchActivityImages,
+  isStockPhoto
 } from '../lib/firebase';
 import { WhatsAppIcon } from './Navbar';
 
@@ -304,7 +305,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     setIsAvailable(true);
     setSelectedFiles([]);
     setFilePreviews([]);
-    const baseImages = item.gallery && item.gallery.length > 0 ? [...item.gallery] : (item.imageUrl ? [item.imageUrl] : []);
+    const baseImages = (item.gallery && item.gallery.length > 0 ? [...item.gallery] : (item.imageUrl ? [item.imageUrl] : []))
+      .filter((u) => !isStockPhoto(u));
     setExistingImages(baseImages);
     setValidationErrors({});
     setErrorMessage(null);
@@ -316,7 +318,8 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     if (item.id) {
       fetchActivityImages(item.id).then((subImgs) => {
         if (subImgs && subImgs.length > 0) {
-          setExistingImages((prev) => Array.from(new Set([...prev, ...subImgs])));
+          const cleanSub = subImgs.filter((u) => !isStockPhoto(u));
+          setExistingImages((prev) => Array.from(new Set([...prev, ...cleanSub])));
         }
       });
     }
@@ -557,9 +560,11 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         priceMAD = 450;
       }
 
-      const primaryCover = existingImages.length > 0 
-        ? existingImages[0] 
-        : (activeItem.imageUrl || '');
+      const cleanExisting = existingImages.filter(img => !isStockPhoto(img));
+      const cleanActiveUrl = activeItem.imageUrl && !isStockPhoto(activeItem.imageUrl) ? activeItem.imageUrl : '';
+      const primaryCover = cleanExisting.length > 0 
+        ? cleanExisting[0] 
+        : cleanActiveUrl;
 
       const regionPresets: Record<string, string> = {
         'all': 'أكادير',
@@ -620,27 +625,18 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
       setActiveItem(null);
     } catch (err: any) {
       console.error('Error saving activity:', err);
-      let userMsg = 'حدث خطأ أثناء حفظ النشاط في قاعدة البيانات. يرجى التأكد من الاتصال بالموقع والمحاولة ثانية.';
-      if (err) {
-        const raw = typeof err === 'string' ? err : (err.message || String(err));
-        if (raw.includes('{') && raw.includes('}')) {
-          try {
-            const start = raw.indexOf('{');
-            const end = raw.lastIndexOf('}');
-            const parsed = JSON.parse(raw.substring(start, end + 1));
-            if (parsed && typeof parsed.error === 'string' && !parsed.error.includes('{')) {
-              userMsg = parsed.error;
-            }
-          } catch {
-            // Keep userMsg clean
+      let userMsg = 'حدث خطأ أثناء حفظ النشاط في قاعدة البيانات. يرجى المحاولة ثانية.';
+      if (err?.message) {
+        try {
+          if (typeof err.message === 'string' && err.message.trim().startsWith('{')) {
+            const parsed = JSON.parse(err.message);
+            userMsg = parsed.error || userMsg;
+          } else {
+            userMsg = err.message;
           }
-        } else if (raw && !raw.includes('FirebaseError') && !raw.includes('GrpcConnection')) {
-          userMsg = raw;
+        } catch {
+          userMsg = err.message;
         }
-      }
-      // Guarantee user never sees raw JSON or system technical objects
-      if (userMsg.includes('{') || userMsg.includes('authInfo') || userMsg.includes('operationType') || userMsg.includes('path')) {
-        userMsg = 'تعذر الحفظ في قاعدة البيانات بسبب بطء الاتصال بالشبكة، يرجى المحاولة ثانية.';
       }
       setErrorMessage(userMsg);
     } finally {
@@ -964,15 +960,15 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                                     <td className="p-3.5">
                                       <div className="flex items-center gap-3">
                                         <div className="relative">
-                                          {item.imageUrl ? (
+                                          {item.imageUrl && !isStockPhoto(item.imageUrl) ? (
                                             <img
                                               src={item.imageUrl}
                                               alt={item.title}
                                               className="w-12 h-12 rounded-xl object-cover shrink-0 border border-stone-200 shadow-xs"
                                             />
                                           ) : (
-                                            <div className="w-12 h-12 rounded-xl bg-stone-100 border border-stone-200 flex items-center justify-center shrink-0 text-[#C98B4B]">
-                                              <Mountain className="w-6 h-6" />
+                                            <div className="w-12 h-12 rounded-xl bg-[#2E2118] border border-stone-700 flex items-center justify-center text-[#C98B4B] shrink-0">
+                                              <Mountain className="w-5 h-5 text-[#C98B4B]" />
                                             </div>
                                           )}
                                           {imageCount > 1 && (
@@ -1394,7 +1390,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               dir="ltr"
                               value={settingsHeroImage}
                               onChange={(e) => setSettingsHeroImage(e.target.value)}
-                              placeholder="https://images.unsplash.com/..."
+                              placeholder="https://..."
                               className="w-full p-2.5 rounded-[10px] border border-[#C98B4B]/40 bg-white text-xs focus:outline-none focus:ring-2 focus:ring-[#9C4A2F]"
                             />
                           </div>
@@ -1944,17 +1940,13 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                               idx === 0 ? 'border-[#c2410c] ring-2 ring-[#c2410c]/30' : 'border-stone-300'
                             }`}
                           >
-                             <div className="w-full h-24 overflow-hidden bg-stone-100 flex items-center justify-center">
-                               {imgUrl ? (
-                                 <img 
-                                   src={imgUrl} 
-                                   alt={`Activity photo ${idx + 1}`} 
-                                   className="w-full h-full object-cover" 
-                                 />
-                               ) : (
-                                 <Mountain className="w-8 h-8 text-stone-400" />
-                               )}
-                             </div>
+                            <div className="w-full h-24 overflow-hidden bg-stone-100">
+                              <img 
+                                src={imgUrl} 
+                                alt={`Activity photo ${idx + 1}`} 
+                                className="w-full h-full object-cover" 
+                              />
+                            </div>
 
                             {/* Badge */}
                             {idx === 0 ? (
@@ -2027,7 +2019,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
                       disabled={isSaving}
                       value={activeItem.imageUrl || ''}
                       onChange={(e) => setActiveItem({ ...activeItem, imageUrl: e.target.value })}
-                      placeholder="https://example.com/photo.webp"
+                      placeholder="https://..."
                       className="w-full p-2 rounded-lg border border-stone-300 text-xs font-mono bg-white text-left disabled:opacity-50"
                       dir="ltr"
                     />

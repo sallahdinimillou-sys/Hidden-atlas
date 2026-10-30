@@ -51,10 +51,8 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const rawBg = heroImageUrl || 'https://images.unsplash.com/photo-1489749798305-4fea3ae63d43';
-  const isUnsplash = rawBg.includes('images.unsplash.com');
-  const bgImageDesktop = isUnsplash ? `${rawBg.split('?')[0]}?auto=format&fit=crop&w=1400&q=80&fm=webp` : rawBg;
-  const bgImageMobile = isUnsplash ? `${rawBg.split('?')[0]}?auto=format&fit=crop&w=800&q=80&fm=webp` : rawBg;
+  const hasUploadedHero = Boolean(heroImageUrl && !heroImageUrl.includes('images.unsplash.com') && !heroImageUrl.includes('picsum.photos'));
+  const rawBg = hasUploadedHero ? heroImageUrl : '';
 
   const directWhatsappUrl = getWhatsAppContactUrl(
     whatsappNumber,
@@ -69,13 +67,12 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
       id="hero-section"
       className="relative min-h-[92vh] min-h-[92dvh] sm:min-h-[96vh] sm:min-h-[96dvh] flex flex-col justify-between overflow-hidden pt-24 sm:pt-28 pb-0"
     >
-      {/* 1. Full-screen Cinematic High Atlas & Mount Toubkal Image with Gentle Parallax */}
+      {/* 1. Cinematic Hero Background: Uploaded image OR atmospheric Atlas gradient */}
       <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
-        <picture>
-          <source media="(max-width: 640px)" srcSet={bgImageMobile} />
+        {hasUploadedHero ? (
           <img
-            src={bgImageDesktop}
-            alt="Mount Toubkal and High Atlas Mountains in Morocco"
+            src={rawBg}
+            alt="Mount Toubkal and High Atlas Mountains"
             fetchPriority="high"
             decoding="async"
             width={1920}
@@ -86,7 +83,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
             }}
             className="w-full h-full object-cover object-center brightness-95 contrast-105"
           />
-        </picture>
+        ) : (
+          <div className="w-full h-full bg-gradient-to-br from-[#1C120A] via-[#2A1B10] to-[#140D07]" />
+        )}
 
         {/* Soft Dark Gradient Overlay for Maximum Text Contrast */}
         <div className="absolute inset-0 bg-gradient-to-t from-[#2E2118]/90 via-[#2E2118]/55 to-[#2E2118]/40" />

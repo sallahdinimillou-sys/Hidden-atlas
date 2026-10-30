@@ -9,7 +9,7 @@ import { ImageLightboxModal } from './ImageLightboxModal';
 import { MountainLineIcon } from './AtlasLineIcons';
 import { GroupPricingTable } from './GroupPricingTable';
 import { findMatchingTier, getCurrencySymbol } from '../utils/groupPricing';
-import { fetchActivityImages } from '../lib/firebase';
+import { fetchActivityImages, isStockPhoto } from '../lib/firebase';
 
 interface ItemDetailModalProps {
   item: ListingItem;
@@ -36,6 +36,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   const [selectedPhotoIndex, setSelectedPhotoIndex] = useState(0);
   const [isLightboxOpen, setIsLightboxOpen] = useState(false);
   const [subcollectionPhotos, setSubcollectionPhotos] = useState<string[]>([]);
+  const [touchStartX, setTouchStartX] = useState<number | null>(null);
   const [preferredDate, setPreferredDate] = useState(() => {
     const d = new Date();
     d.setDate(d.getDate() + 2);
@@ -48,7 +49,8 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     if (isOpen && item?.id) {
       fetchActivityImages(item.id).then((subImgs) => {
         if (isMounted && subImgs && subImgs.length > 0) {
-          setSubcollectionPhotos(subImgs);
+          const clean = subImgs.filter((u) => Boolean(u) && !isStockPhoto(u));
+          setSubcollectionPhotos(clean);
         }
       });
     } else {
@@ -65,10 +67,31 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
 
   if (!isOpen) return null;
 
-  const allPhotos = Array.from(
-    new Set([item.imageUrl, ...(item.gallery || []), ...subcollectionPhotos].filter(Boolean))
-  );
+  // Exact gallery order: subcollection photos first (sorted by admin index), or fallback to item images, strictly excluding stock photos
+  const rawPhotos = subcollectionPhotos.length > 0
+    ? subcollectionPhotos
+    : [item.imageUrl, ...(item.gallery || [])];
+  const allPhotos = Array.from(new Set(rawPhotos.filter((p) => Boolean(p) && !isStockPhoto(p))));
   const currentPhotoIndex = Math.min(selectedPhotoIndex, Math.max(0, allPhotos.length - 1));
+
+  // Touch handlers for mobile gallery swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null || allPhotos.length <= 1) return;
+    const diff = touchStartX - e.changedTouches[0].clientX;
+    const SWIPE_THRESHOLD = 30;
+    if (diff > SWIPE_THRESHOLD) {
+      // Swiped left -> next
+      setSelectedPhotoIndex((prev) => (prev < allPhotos.length - 1 ? prev + 1 : 0));
+    } else if (diff < -SWIPE_THRESHOLD) {
+      // Swiped right -> prev
+      setSelectedPhotoIndex((prev) => (prev > 0 ? prev - 1 : allPhotos.length - 1));
+    }
+    setTouchStartX(null);
+  };
 
   // Group Pricing resolution
   const hasGroupPricing = Boolean(item.groupPricing && item.groupPricing.length > 0);
@@ -124,29 +147,14 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
         <div className="flex-1 overflow-y-auto overscroll-contain">
           
           {/* Gallery Section */}
-          <div className="relative bg-[#2E2118] overflow-hidden min-h-[220px]">
-            {allPhotos.length === 0 ? (
-              // Neutral empty state in Toubkal palette with mountain graphic (never stock photo)
-              <div className="w-full h-[240px] sm:h-[300px] bg-gradient-to-br from-[#2E2118] via-[#3D2C20] to-[#1F1610] flex flex-col items-center justify-center p-6 text-center text-[#F8F5F0]">
-                <div className="w-16 h-16 rounded-full bg-[#C98B4B]/15 border border-[#C98B4B]/30 flex items-center justify-center mb-3">
-                  <MountainLineIcon className="w-9 h-9 text-[#C98B4B]" />
-                </div>
-                <h3 className="font-heading font-bold text-lg text-[#F8F5F0] drop-shadow-sm max-w-[85%]">
-                  {loc.title}
-                </h3>
-                <span className="text-xs text-[#C98B4B] font-semibold tracking-wider uppercase mt-1">
-                  {loc.location}
-                </span>
-              </div>
-            ) : (
+          <div className="relative bg-[#2E2118] overflow-hidden select-none">
+            {allPhotos.length > 0 ? (
               <>
                 {/* Ambient Blurred Background Fill */}
                 <div className="absolute inset-0 overflow-hidden pointer-events-none">
-                  <img
-                    src={allPhotos[currentPhotoIndex]}
-                    alt=""
-                    aria-hidden="true"
-                    className="w-full h-full object-cover blur-2xl scale-125 opacity-35 brightness-75"
+                  <div 
+                    className="w-full h-full bg-cover bg-center blur-2xl scale-125 opacity-35 brightness-75 transition-all duration-500"
+                    style={{ backgroundImage: `url(${allPhotos[currentPhotoIndex]})` }}
                   />
                   <div className="absolute inset-0 bg-[#2E2118]/60" />
                 </div>
@@ -155,6 +163,8 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                 <div 
                   className="relative z-10 w-full h-[260px] sm:h-[360px] md:h-[420px] flex items-center justify-center p-2 sm:p-4 group/photo cursor-zoom-in"
                   onClick={() => setIsLightboxOpen(true)}
+                  onTouchStart={handleTouchStart}
+                  onTouchEnd={handleTouchEnd}
                   title={isAr ? 'انقر لتكبير وتصفح الصور بالكامل' : 'Click to zoom and browse full gallery'}
                 >
                   <img
@@ -201,6 +211,16 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
                   </div>
                 )}
               </>
+            ) : (
+              /* Neutral Empty Header in Brand Palette (NEVER a stock photo!) */
+              <div className="relative z-10 w-full h-[240px] sm:h-[300px] flex flex-col items-center justify-center p-6 bg-gradient-to-br from-[#2E2118] via-[#38281E] to-[#201610] text-[#F8F5F0]">
+                <div className="w-16 h-16 rounded-full bg-white/5 border border-[#C98B4B]/30 flex items-center justify-center text-[#C98B4B] mb-3 shadow-inner">
+                  <MountainLineIcon className="w-8 h-8 stroke-[1.5]" />
+                </div>
+                <span className="font-heading font-bold text-base text-stone-200">
+                  {loc.title}
+                </span>
+              </div>
             )}
 
             {/* Type Badge */}

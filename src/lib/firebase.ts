@@ -34,12 +34,15 @@ import {
 // Initialize Firebase App
 const app = getApps().length > 0 ? getApp() : initializeApp(firebaseConfig);
 
-// Initialize Firestore with custom databaseId
+// Initialize Firestore with custom databaseId and auto-detect long polling for guaranteed mobile 4G reliability
 let dbInstance: any;
 try {
   dbInstance = initializeFirestore(
     app,
-    {},
+    {
+      experimentalAutoDetectLongPolling: true,
+      experimentalForceLongPolling: false
+    },
     firebaseConfig.firestoreDatabaseId || '(default)'
   );
 } catch (e) {
@@ -258,6 +261,21 @@ export interface StoredImagesPackage {
 }
 
 /**
+ * Checks whether an image URL is a stock / placeholder / unsplash image
+ */
+export function isStockPhoto(url?: string): boolean {
+  if (!url) return false;
+  return (
+    url.includes('images.unsplash.com') ||
+    url.includes('picsum.photos') ||
+    url.includes('placeholder.com') ||
+    url.includes('via.placeholder')
+  );
+}
+
+const activityImagesCache = new Map<string, string[]>();
+
+/**
  * Stores activity images safely according to the strict byte budget:
  * - Resizes full image to max 1280px, <= 150 KB
  * - Resizes thumbnail to max 400px, <= 30 KB
@@ -270,7 +288,10 @@ export async function storeActivityImages(
   existingUrls: string[] = [],
   onProgress?: SaveProgressCallback
 ): Promise<StoredImagesPackage> {
-  const cleanExisting = Array.from(new Set(existingUrls.filter(Boolean))).slice(0, 10);
+  // Purge any stock photo from existingUrls immediately so only user images are kept
+  const cleanExisting = Array.from(
+    new Set(existingUrls.filter((u) => Boolean(u) && !isStockPhoto(u)))
+  ).slice(0, 10);
   const allowedNewFiles = newFiles.slice(0, Math.max(0, 10 - cleanExisting.length));
   const totalCount = cleanExisting.length + allowedNewFiles.length;
 
@@ -278,7 +299,7 @@ export async function storeActivityImages(
   const cleanGalleryUrls: string[] = [];
   let primaryThumbnail = '';
 
-  // Process existing images (carry over public URLs, re-compress any old raw base64)
+  // Process existing images
   for (let i = 0; i < cleanExisting.length; i++) {
     const url = cleanExisting[i];
     if (typeof url === 'string') {
@@ -286,6 +307,7 @@ export async function storeActivityImages(
         cleanGalleryUrls.push(url);
         if (!primaryThumbnail) primaryThumbnail = url;
       } else if (url.startsWith('data:')) {
+        // Base64 existing image: compress to budget and store in subcollection
         try {
           const pkg = await processActivityImage(url);
           if (!primaryThumbnail) primaryThumbnail = pkg.thumbnail.dataUrl;
@@ -306,50 +328,76 @@ export async function storeActivityImages(
     }
   }
 
-  // Process new uploaded files in parallel for maximum speed
+  // Process new uploaded files
   if (allowedNewFiles.length > 0) {
     if (onProgress) {
       onProgress(20, `جاري ضغط ومعالجة ${allowedNewFiles.length} ${allowedNewFiles.length === 1 ? 'صورة' : 'صور'} بتقنية WebP...`);
     }
 
-    // Compress all files concurrently
-    const compressedPackages = await Promise.all(
-      allowedNewFiles.map(async (file, index) => {
-        const pkg = await processActivityImage(file);
-        return { file, pkg, index };
-      })
-    );
+    for (let index = 0; index < allowedNewFiles.length; index++) {
+      const file = allowedNewFiles[index];
+      const overallIndex = cleanExisting.length + index;
 
-    if (onProgress) {
-      onProgress(65, 'جاري حفظ الصور المحسنة في قاعدة البيانات...');
-    }
+      if (onProgress) {
+        const pct = Math.round(20 + ((index + 1) / allowedNewFiles.length) * 55);
+        onProgress(pct, `جاري تجهيز الصورة ${index + 1} من ${allowedNewFiles.length}...`);
+      }
 
-    // Set cover thumbnail from the first new image if not yet set
-    if (!primaryThumbnail && compressedPackages.length > 0) {
-      primaryThumbnail = compressedPackages[0].pkg.thumbnail.dataUrl;
-    }
+      // Step 1: Compress to budget: full <= 150KB, thumbnail <= 30KB
+      const pkg = await processActivityImage(file);
+      if (!primaryThumbnail) {
+        primaryThumbnail = pkg.thumbnail.dataUrl;
+      }
 
-    // Write all images to subcollection concurrently with Promise.all
-    await Promise.all(
-      compressedPackages.map(async ({ pkg, index }) => {
-        const overallIndex = cleanExisting.length + index;
+      // Step 2: Attempt Firebase Storage upload
+      let storageUploaded = false;
+      try {
+        const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
+        const extension = pkg.full.mimeType === 'image/webp' ? 'webp' : 'jpg';
+        const storagePath = `activities/${activityId}/${Date.now()}_${index}_${cleanName}.${extension}`;
+        const storageRef = ref(storage, storagePath);
+
+        const uploadTask = uploadBytes(storageRef, pkg.full.blob, {
+          contentType: pkg.full.mimeType,
+          customMetadata: { format: pkg.full.mimeType }
+        });
+
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('STORAGE_TIMEOUT')), 3500)
+        );
+
+        const snapshot = await Promise.race([uploadTask, timeoutPromise]);
+        const downloadUrl = await getDownloadURL(snapshot.ref);
+
+        cleanGalleryUrls.push(downloadUrl);
+        storageUploaded = true;
+      } catch (storageErr) {
+        // Storage failed or timed out: use subcollection fallback
+        storageUploaded = false;
+      }
+
+      // Step 3: If not stored in Storage, store in subcollection
+      if (!storageUploaded) {
         const subDocId = `img_${overallIndex}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
         await setDoc(doc(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES, subDocId), {
           id: subDocId,
           activityId,
-          dataUrl: pkg.full.dataUrl, // <= 150 KB
+          dataUrl: pkg.full.dataUrl, // <= 150 KB, well under 700KB and 1MB Firestore limit
           index: overallIndex,
           createdAt: new Date().toISOString()
         });
-      })
-    );
-    hasSubcollectionImages = true;
+        hasSubcollectionImages = true;
+      }
+    }
   }
 
-  // Strictly use uploaded images or empty string; NEVER inject stock/placeholder photos
+  // Cover image: first clean image or empty (NEVER a stock photo!)
   if (!primaryThumbnail) {
     primaryThumbnail = cleanGalleryUrls[0] || '';
   }
+
+  // Invalidate cache so newly stored images are loaded immediately
+  activityImagesCache.delete(activityId);
 
   return {
     thumbnailUrl: primaryThumbnail,
@@ -360,36 +408,47 @@ export async function storeActivityImages(
 }
 
 /**
- * Fetch detail high-resolution gallery images from the subcollection lazily
+ * Fetch detail high-resolution gallery images from the subcollection lazily with in-memory caching
  */
-export async function fetchActivityImages(activityId: string): Promise<string[]> {
+export async function fetchActivityImages(activityId: string, bypassCache = false): Promise<string[]> {
   if (!activityId) return [];
+  if (!bypassCache && activityImagesCache.has(activityId)) {
+    return activityImagesCache.get(activityId)!;
+  }
+
+  let images: string[] = [];
   try {
     const imagesRef = collection(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES);
     const q = query(imagesRef, orderBy('index', 'asc'));
     const snap = await getDocs(q);
     if (!snap.empty) {
-      return snap.docs.map((d) => d.data().dataUrl).filter(Boolean);
+      images = snap.docs
+        .map((d) => d.data().dataUrl)
+        .filter((u) => Boolean(u) && !isStockPhoto(u));
     }
   } catch (err) {
     try {
       const snap = await getDocs(collection(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES));
-      return snap.docs
+      images = snap.docs
         .map((d) => d.data())
         .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
         .map((d) => d.dataUrl)
-        .filter(Boolean);
+        .filter((u) => Boolean(u) && !isStockPhoto(u));
     } catch (e) {
       console.warn(`Could not fetch subcollection images for activity ${activityId}:`, e);
     }
   }
-  return [];
+
+  activityImagesCache.set(activityId, images);
+  return images;
 }
 
 /**
  * Clean up subcollection documents and storage references for an activity
  */
 export async function deleteActivityImages(activityId: string, imageUrls: string[] = []): Promise<void> {
+  activityImagesCache.delete(activityId);
+
   // 1. Delete all subcollection docs
   try {
     const subSnap = await getDocs(collection(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES));
@@ -452,11 +511,12 @@ export async function migrateLargeActivityDocuments(): Promise<number> {
           }
         }
 
-        // Clean main document so its size drops from >1MB to < 40 KB
+        // Clean main document so its size drops from >1MB to < 40 KB (NO stock photo fallbacks!)
+        const safeCover = (!isStockPhoto(smallCoverThumbnail) ? smallCoverThumbnail : '') || (!isStockPhoto(data.imageUrl) ? data.imageUrl : '');
         await updateDoc(docSnap.ref, {
-          imageUrl: smallCoverThumbnail || data.imageUrl || '',
-          gallery: (data.gallery || []).filter((u: string) => !u.startsWith('data:')),
-          images: (data.images || []).filter((u: string) => !u.startsWith('data:')),
+          imageUrl: safeCover,
+          gallery: (data.gallery || []).filter((u: string) => !u.startsWith('data:') && !isStockPhoto(u)),
+          images: (data.images || []).filter((u: string) => !u.startsWith('data:') && !isStockPhoto(u)),
           hasSubcollectionImages: true,
           updatedAt: new Date().toISOString()
         });
@@ -470,7 +530,7 @@ export async function migrateLargeActivityDocuments(): Promise<number> {
 }
 
 /**
- * Convert a Firestore Document Data into a clean ListingItem
+ * Convert a Firestore Document Data into a clean ListingItem (NO hardcoded default/stock photos!)
  */
 export function formatDocToListing(id: string, data: any): ListingItem {
   const priceMAD = Number(data.priceMAD !== undefined ? data.priceMAD : (data.price || 0));
@@ -486,9 +546,9 @@ export function formatDocToListing(id: string, data: any): ListingItem {
     rawImages = [];
   }
 
-  // Deduplicate images
-  const images = Array.from(new Set(rawImages.filter(Boolean)));
-  const primaryImageUrl = data.imageUrl || images[0] || '';
+  // Filter out any stock photos completely
+  const images = Array.from(new Set(rawImages.filter((u) => Boolean(u) && !isStockPhoto(u))));
+  const primaryImageUrl = (!isStockPhoto(data.imageUrl) ? data.imageUrl : '') || images[0] || '';
 
   return {
     id: id,
@@ -748,13 +808,33 @@ export async function createFirestoreActivity(
       docData.images = (docData.images || []).filter((u: string) => !u.startsWith('data:'));
     }
 
-    // Write to Firestore with automatic retry
-    try {
-      await setDoc(docRef, docData);
-    } catch (primaryErr) {
-      console.warn('Initial setDoc attempt warning, retrying once...', primaryErr);
-      await new Promise((r) => setTimeout(r, 600));
-      await setDoc(docRef, docData);
+    // Write to Firestore with robust retry and 40s mobile guard
+    let writeSuccess = false;
+    let writeErr: any = null;
+
+    for (let attempt = 1; attempt <= 2 && !writeSuccess; attempt++) {
+      try {
+        await Promise.race([
+          setDoc(docRef, docData),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('TIMEOUT')), attempt === 1 ? 35000 : 45000)
+          )
+        ]);
+        writeSuccess = true;
+      } catch (err: any) {
+        writeErr = err;
+        console.warn(`Firestore setDoc attempt ${attempt} warning:`, err);
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+    }
+
+    if (!writeSuccess) {
+      if (writeErr?.message === 'TIMEOUT') {
+        throw new Error('استغرق الحفظ في قاعدة البيانات وقتاً طويلاً بسبب ضعف الاتصال، يرجى المحاولة ثانية.');
+      }
+      throw writeErr;
     }
 
     if (onProgress) {
@@ -870,13 +950,33 @@ export async function updateFirestoreActivity(
       updates.images = (updates.images || []).filter((u: string) => !u.startsWith('data:'));
     }
 
-    // Write update to Firestore with automatic retry
-    try {
-      await updateDoc(docRef, updates);
-    } catch (primaryErr) {
-      console.warn('Initial updateDoc attempt warning, retrying once...', primaryErr);
-      await new Promise((r) => setTimeout(r, 600));
-      await updateDoc(docRef, updates);
+    // Write update to Firestore with robust retry and extended 40s timeout for mobile 4G
+    let updateSuccess = false;
+    let updateErr: any = null;
+
+    for (let attempt = 1; attempt <= 2 && !updateSuccess; attempt++) {
+      try {
+        await Promise.race([
+          updateDoc(docRef, updates),
+          new Promise((_, reject) => 
+            setTimeout(() => reject(new Error('TIMEOUT')), attempt === 1 ? 35000 : 45000)
+          )
+        ]);
+        updateSuccess = true;
+      } catch (err: any) {
+        updateErr = err;
+        console.warn(`Firestore updateDoc attempt ${attempt} warning:`, err);
+        if (attempt < 2) {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
+    }
+
+    if (!updateSuccess) {
+      if (updateErr?.message === 'TIMEOUT') {
+        throw new Error('استغرق التحديث في قاعدة البيانات وقتاً طويلاً بسبب ضعف الاتصال، يرجى المحاولة ثانية.');
+      }
+      throw updateErr;
     }
 
     if (onProgress) {
@@ -996,7 +1096,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   whatsappDisplay: '0662634926',
   facebookUrl: 'https://www.facebook.com/share/18k4njmMaP/?mibextid=wwXIfr',
   instagramUrl: 'https://www.instagram.com/amalo_hossain?obrf=aDd4N2gwNTAyZTd5&utm_source=qr',
-  heroImageUrl: 'https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&w=2600&q=85',
+  heroImageUrl: '',
   guideName: 'Hossain Amalo',
   guideRole: 'Your Local Tour Guide in Morocco',
   guideBio: 'Born and raised in the High Atlas Mountains at the foot of Mount Toubkal, with over 12 years of mountain trekking, desert guiding, and sharing genuine Berber hospitality.',
@@ -1016,9 +1116,11 @@ export function subscribeToSiteSettings(
     (snap) => {
       if (snap.exists()) {
         const data = snap.data();
+        const safeHero = !isStockPhoto(data.heroImageUrl) ? (data.heroImageUrl || '') : '';
         onUpdate({
           ...DEFAULT_SITE_SETTINGS,
-          ...data
+          ...data,
+          heroImageUrl: safeHero
         });
       } else {
         onUpdate(DEFAULT_SITE_SETTINGS);

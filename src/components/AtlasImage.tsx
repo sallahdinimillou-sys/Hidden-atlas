@@ -85,15 +85,10 @@ export const AtlasImage: React.FC<AtlasImageProps> = ({
       ? 'aspect-square'
       : '';
 
-  return (
-    <div className={`relative overflow-hidden ${aspectClass} ${containerClassName}`}>
-      {/* 1. Loading Skeleton Shimmer */}
-      {!isLoaded && !hasError && src && src.trim() && (
-        <div className="absolute inset-0 bg-gradient-to-r from-[#F0ECE1] via-[#E4DDD0] to-[#F0ECE1] bg-[length:200%_100%] animate-shimmer" />
-      )}
-
-      {/* 2. Empty or Error Fallback: Elegant Moroccan Mountain Vector with Toubkal Palette */}
-      {hasError || !src || !src.trim() ? (
+  // If no source is provided or has failed, render neutral mountain vector fallback
+  if (!src || hasError) {
+    return (
+      <div className={`relative overflow-hidden ${aspectClass} ${containerClassName}`}>
         <div
           role="img"
           aria-label={alt || 'Hidden Atlas Morocco Tour'}
@@ -130,26 +125,35 @@ export const AtlasImage: React.FC<AtlasImageProps> = ({
             Toubkal & High Atlas Experience
           </span>
         </div>
-      ) : (
-        /* 3. Real Image with responsive srcset and fast onload transition */
-        <img
-          src={optimizedSrc}
-          srcSet={srcSet}
-          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
-          alt={alt}
-          loading={priority ? 'eager' : 'lazy'}
-          fetchPriority={priority ? 'high' : 'auto'}
-          decoding="async"
-          width={computedWidth}
-          height={computedHeight}
-          onLoad={() => setIsLoaded(true)}
-          onError={() => setHasError(true)}
-          className={`w-full h-full object-cover transition-opacity duration-300 ${
-            isLoaded ? 'opacity-100' : 'opacity-0'
-          } ${className}`}
-          {...restProps}
-        />
+      </div>
+    );
+  }
+
+  return (
+    <div className={`relative overflow-hidden ${aspectClass} ${containerClassName}`}>
+      {/* 1. Loading Skeleton Shimmer */}
+      {!isLoaded && (
+        <div className="absolute inset-0 bg-gradient-to-r from-[#F0ECE1] via-[#E4DDD0] to-[#F0ECE1] bg-[length:200%_100%] animate-shimmer" />
       )}
+
+      {/* 2. Real Image with responsive srcset and fast onload transition */}
+      <img
+        src={optimizedSrc}
+        srcSet={srcSet}
+        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        alt={alt}
+        loading={priority ? 'eager' : 'lazy'}
+        fetchPriority={priority ? 'high' : 'auto'}
+        decoding="async"
+        width={computedWidth}
+        height={computedHeight}
+        onLoad={() => setIsLoaded(true)}
+        onError={() => setHasError(true)}
+        className={`w-full h-full object-cover transition-opacity duration-300 ${
+          isLoaded ? 'opacity-100' : 'opacity-0'
+        } ${className}`}
+        {...restProps}
+      />
     </div>
   );
 };

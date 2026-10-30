@@ -5,6 +5,8 @@ import { formatPrice, getWhatsAppBookingUrl } from '../utils/formatters';
 import { TRANSLATIONS } from '../utils/translations';
 import { getLocalizedListing } from '../data/localizedContent';
 import { WhatsAppIcon } from './Navbar';
+import { MountainLineIcon } from './AtlasLineIcons';
+import { isStockPhoto } from '../lib/firebase';
 
 interface WishlistDrawerProps {
   isOpen: boolean;
@@ -80,28 +82,38 @@ export const WishlistDrawer: React.FC<WishlistDrawerProps> = ({
             wishlist.map((item) => {
               const loc = getLocalizedListing(item, currentLang);
               const waUrl = getWhatsAppBookingUrl(item, currentLang, loc.title, loc.duration, undefined, 2, whatsappNumber);
-              const optimizedThumb = item.imageUrl.includes('images.unsplash.com')
-                ? `${item.imageUrl.split('?')[0]}?auto=format&fit=crop&w=160&q=80&fm=webp`
-                : item.imageUrl;
+              const hasRealImage = Boolean(item.imageUrl && !isStockPhoto(item.imageUrl));
 
               return (
                 <div
                   key={item.id}
                   className="p-3 rounded-[14px] bg-white/65 backdrop-blur-md border border-white/70 shadow-xs flex gap-3 hover:border-[#9C4A2F] transition-colors"
                 >
-                  <img
-                    src={optimizedThumb}
-                    alt={loc.title}
-                    width={80}
-                    height={80}
-                    loading="lazy"
-                    decoding="async"
-                    className="w-20 h-20 rounded-[10px] object-cover shrink-0 cursor-pointer"
-                    onClick={() => {
-                      onClose();
-                      onViewDetails(item);
-                    }}
-                  />
+                  {hasRealImage ? (
+                    <img
+                      src={item.imageUrl}
+                      alt={loc.title}
+                      width={80}
+                      height={80}
+                      loading="lazy"
+                      decoding="async"
+                      className="w-20 h-20 rounded-[10px] object-cover shrink-0 cursor-pointer"
+                      onClick={() => {
+                        onClose();
+                        onViewDetails(item);
+                      }}
+                    />
+                  ) : (
+                    <div 
+                      className="w-20 h-20 rounded-[10px] bg-gradient-to-br from-[#2E2118] via-[#38281E] to-[#201610] flex items-center justify-center shrink-0 cursor-pointer border border-[#C98B4B]/20"
+                      onClick={() => {
+                        onClose();
+                        onViewDetails(item);
+                      }}
+                    >
+                      <MountainLineIcon className="w-6 h-6 text-[#C98B4B] stroke-[1.5]" />
+                    </div>
+                  )}
 
                   <div className="flex-1 flex flex-col justify-between">
                     <div>

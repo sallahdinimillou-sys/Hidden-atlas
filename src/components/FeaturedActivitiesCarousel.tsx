@@ -4,7 +4,8 @@ import { ListingItem, Currency, LanguageCode } from '../types';
 import { formatPrice, getWhatsAppBookingUrl } from '../utils/formatters';
 import { TRANSLATIONS } from '../utils/translations';
 import { getLocalizedListing } from '../data/localizedContent';
-import { AtlasImage } from './AtlasImage';
+import { MountainLineIcon } from './AtlasLineIcons';
+import { isStockPhoto } from '../lib/firebase';
 
 interface FeaturedActivitiesProps {
   activities: ListingItem[];
@@ -66,17 +67,23 @@ export const FeaturedActivitiesCarousel: React.FC<FeaturedActivitiesProps> = ({
                 className="group relative bg-white rounded-2xl overflow-hidden shadow-desert hover:shadow-desert-hover border border-amber-900/10 transition-all duration-300 flex flex-col justify-between"
               >
               {/* Image & Overlay */}
-              <div className="relative aspect-[16/11] overflow-hidden">
-                <AtlasImage
-                  src={act.imageUrl}
-                  alt={loc.title}
-                  fallbackTitle={loc.title}
-                  aspectRatio="16/11"
-                  width={640}
-                  height={440}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+              <div className="relative aspect-[16/11] overflow-hidden bg-[#2E2118]">
+                {act.imageUrl && !isStockPhoto(act.imageUrl) ? (
+                  <img
+                    src={act.imageUrl}
+                    alt={loc.title}
+                    loading="lazy"
+                    decoding="async"
+                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
+                  />
+                ) : (
+                  <div className="w-full h-full min-h-[160px] bg-gradient-to-br from-[#2E2118] via-[#38281E] to-[#201610] flex flex-col items-center justify-center p-6 text-center text-[#F8F5F0]">
+                    <div className="w-12 h-12 rounded-full bg-white/5 border border-[#C98B4B]/30 flex items-center justify-center text-[#C98B4B] mb-2 shadow-inner">
+                      <MountainLineIcon className="w-6 h-6 stroke-[1.5]" />
+                    </div>
+                  </div>
+                )}
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent pointer-events-none" />
 
                 {/* Top Badge */}
                 <div className="absolute top-3 left-3">

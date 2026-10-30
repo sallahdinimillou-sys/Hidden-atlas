@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Heart, 
   Star, 
@@ -9,16 +9,16 @@ import {
   Flame, 
   Sparkles,
   ChevronLeft,
-  ChevronRight,
-  Mountain
+  ChevronRight
 } from 'lucide-react';
 import { ListingItem, Currency, LanguageCode } from '../types';
 import { formatPrice, getWhatsAppBookingUrl } from '../utils/formatters';
 import { TRANSLATIONS } from '../utils/translations';
 import { getLocalizedListing } from '../data/localizedContent';
 import { WhatsAppIcon } from './Navbar';
-import { AtlasImage } from './AtlasImage';
+import { MountainLineIcon } from './AtlasLineIcons';
 import { getLowestTierPrice, getCurrencySymbol } from '../utils/groupPricing';
+import { fetchActivityImages, isStockPhoto } from '../lib/firebase';
 
 interface ListingCardProps {
   item: ListingItem;
@@ -42,8 +42,66 @@ export const ListingCard: React.FC<ListingCardProps> = ({
 }) => {
   const t = TRANSLATIONS[currentLang];
   const loc = getLocalizedListing(item, currentLang);
-  const [activeSlide, setActiveSlide] = useState(0);
+
+  // Images list: show ONLY user-uploaded images, first is cover
+  const [images, setImages] = useState<string[]>(() => {
+    const list = [item.imageUrl, ...(item.gallery || [])].filter((url) => Boolean(url) && !isStockPhoto(url));
+    return Array.from(new Set(list));
+  });
+
+  const [currentSlide, setCurrentSlide] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+
+  // Lazily load subcollection gallery images so card slider can display all user photos
+  useEffect(() => {
+    let isMounted = true;
+    if (item.id && (item.hasSubcollectionImages || images.length <= 1)) {
+      fetchActivityImages(item.id).then((subImgs) => {
+        if (!isMounted) return;
+        const valid = subImgs.filter((img) => Boolean(img) && !isStockPhoto(img));
+        if (valid.length > 0) {
+          setImages((prev) => {
+            const merged = Array.from(new Set([...prev, ...valid]));
+            return merged;
+          });
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [item.id, item.hasSubcollectionImages]);
+
+  // Touch handlers for mobile swipe
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStartX(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStartX === null || images.length <= 1) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartX - touchEndX;
+    const SWIPE_THRESHOLD = 30;
+    if (diff > SWIPE_THRESHOLD) {
+      // Swiped left -> next photo
+      setCurrentSlide((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+    } else if (diff < -SWIPE_THRESHOLD) {
+      // Swiped right -> prev photo
+      setCurrentSlide((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+    }
+    setTouchStartX(null);
+  };
+
+  // Next & Prev arrows handlers
+  const handlePrev = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentSlide((prev) => (prev > 0 ? prev - 1 : images.length - 1));
+  };
+
+  const handleNext = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentSlide((prev) => (prev < images.length - 1 ? prev + 1 : 0));
+  };
 
   // Type badge styling & icon
   const getTypeBadgeLabel = () => {
@@ -83,124 +141,92 @@ export const ListingCard: React.FC<ListingCardProps> = ({
     hasGroupPricing ? `${lowestGroupPrice * 2} ${groupCurrencySymbol}` : undefined
   );
 
-  // Collect all real uploaded images
-  const validImages = Array.from(new Set([item.imageUrl, ...(item.gallery || [])].filter(Boolean)));
-  const hasMultipleImages = validImages.length > 1;
-
-  // Touch swipe handlers
-  const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.touches[0].clientX);
-  };
-
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX === null || !hasMultipleImages) return;
-    const touchEndX = e.changedTouches[0].clientX;
-    const diffX = touchStartX - touchEndX;
-
-    // Minimum swipe threshold: 35px
-    if (Math.abs(diffX) > 35) {
-      if (diffX > 0) {
-        // Swiped left -> next image
-        setActiveSlide((prev) => (prev < validImages.length - 1 ? prev + 1 : 0));
-      } else {
-        // Swiped right -> previous image
-        setActiveSlide((prev) => (prev > 0 ? prev - 1 : validImages.length - 1));
-      }
-    }
-    setTouchStartX(null);
-  };
+  const safeSlideIndex = Math.min(currentSlide, Math.max(0, images.length - 1));
+  const currentPhotoUrl = images[safeSlideIndex];
 
   return (
     <div
       id={`card-${item.id}`}
       className="group bg-white rounded-[14px] overflow-hidden border border-[#C98B4B]/20 shadow-[0_4px_18px_rgba(46,33,24,0.06)] hover:shadow-[0_10px_28px_rgba(46,33,24,0.12)] transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
     >
-      {/* Media Top Container */}
+      {/* Media Top Container with Swipeable Slider */}
       <div 
         className="relative aspect-[16/11] overflow-hidden bg-[#2E2118] cursor-pointer select-none"
         onClick={() => onViewDetails(item)}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {validImages.length === 0 ? (
-          // Neutral empty card background in Sahara/Toubkal palette with small mountain icon (NEVER stock photo)
-          <div className="w-full h-full bg-gradient-to-br from-[#2E2118] via-[#3D2C20] to-[#1F1610] flex flex-col items-center justify-center p-4 text-center">
-            <div className="w-12 h-12 rounded-full bg-[#C98B4B]/15 border border-[#C98B4B]/30 flex items-center justify-center mb-2">
-              <Mountain className="w-6 h-6 text-[#C98B4B]" />
+        {images.length > 0 ? (
+          <>
+            <img
+              src={currentPhotoUrl}
+              alt={`${loc.title} - ${safeSlideIndex + 1}`}
+              loading={safeSlideIndex === 0 ? 'eager' : 'lazy'}
+              decoding="async"
+              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
+            />
+
+            {/* Gradient Overlay for Text legibility */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/65 via-transparent to-black/25 pointer-events-none" />
+
+            {/* Desktop Navigation Arrows (hidden on touch, visible on desktop hover) */}
+            {images.length > 1 && (
+              <>
+                <button
+                  type="button"
+                  aria-label="Previous image"
+                  onClick={handlePrev}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/55 hover:bg-black/85 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs cursor-pointer active:scale-95 border border-white/20 shadow-md"
+                >
+                  <ChevronLeft className="w-4 h-4" />
+                </button>
+                <button
+                  type="button"
+                  aria-label="Next image"
+                  onClick={handleNext}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/55 hover:bg-black/85 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity backdrop-blur-xs cursor-pointer active:scale-95 border border-white/20 shadow-md"
+                >
+                  <ChevronRight className="w-4 h-4" />
+                </button>
+
+                {/* Navigation Dots Indicator */}
+                <div className="absolute bottom-2 left-0 right-0 z-20 flex items-center justify-center pointer-events-none">
+                  <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-black/50 backdrop-blur-xs pointer-events-auto shadow-xs">
+                    {images.map((_, idx) => (
+                      <button
+                        key={idx}
+                        type="button"
+                        aria-label={`Go to photo ${idx + 1}`}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCurrentSlide(idx);
+                        }}
+                        className={`transition-all rounded-full cursor-pointer ${
+                          safeSlideIndex === idx 
+                            ? 'bg-[#C98B4B] w-3 h-1.5' 
+                            : 'bg-white/60 hover:bg-white w-1.5 h-1.5'
+                        }`}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        ) : (
+          /* Neutral Empty Card Background in Site's Palette (NEVER a stock photo!) */
+          <div className="w-full h-full min-h-[160px] bg-gradient-to-br from-[#2E2118] via-[#3D2C20] to-[#241A13] flex flex-col items-center justify-center p-6 text-center text-[#F8F5F0]">
+            <div className="w-12 h-12 rounded-full bg-white/5 border border-[#C98B4B]/30 flex items-center justify-center text-[#C98B4B] mb-2 shadow-inner">
+              <MountainLineIcon className="w-6 h-6 stroke-[1.5]" />
             </div>
-            <span className="font-heading font-bold text-xs sm:text-sm text-[#F8F5F0] drop-shadow-sm max-w-[85%] truncate">
+            <span className="font-heading font-semibold text-xs tracking-wide text-white/90 line-clamp-1 max-w-[80%]">
               {loc.title}
             </span>
-            <span className="text-[10px] text-[#C98B4B] font-semibold tracking-wider uppercase mt-0.5">
-              {loc.city}
-            </span>
-          </div>
-        ) : (
-          <AtlasImage
-            src={validImages[activeSlide] || validImages[0]}
-            alt={`${loc.title} - ${activeSlide + 1}`}
-            fallbackTitle={loc.title}
-            aspectRatio="16/11"
-            width={640}
-            height={440}
-            priority={activeSlide === 0}
-            className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700 ease-out"
-          />
-        )}
-
-        {/* Gradient Overlay for Text legibility */}
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/30 pointer-events-none" />
-
-        {/* Desktop Slider Arrows */}
-        {hasMultipleImages && (
-          <>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveSlide((prev) => (prev > 0 ? prev - 1 : validImages.length - 1));
-              }}
-              className="absolute left-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs transition-opacity opacity-0 group-hover:opacity-100 sm:opacity-0 focus:opacity-100 border border-white/20 active:scale-95 cursor-pointer shadow-md"
-              aria-label="Previous photo"
-            >
-              <ChevronLeft className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setActiveSlide((prev) => (prev < validImages.length - 1 ? prev + 1 : 0));
-              }}
-              className="absolute right-2 top-1/2 -translate-y-1/2 z-20 w-8 h-8 rounded-full bg-black/60 hover:bg-black/90 text-white flex items-center justify-center backdrop-blur-xs transition-opacity opacity-0 group-hover:opacity-100 sm:opacity-0 focus:opacity-100 border border-white/20 active:scale-95 cursor-pointer shadow-md"
-              aria-label="Next photo"
-            >
-              <ChevronRight className="w-4 h-4" />
-            </button>
-          </>
-        )}
-
-        {/* Slider Pagination Dots */}
-        {hasMultipleImages && (
-          <div className="absolute bottom-8 left-0 right-0 z-20 flex items-center justify-center gap-1.5 pointer-events-auto">
-            {validImages.map((_, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setActiveSlide(idx);
-                }}
-                className={`h-1.5 rounded-full transition-all cursor-pointer ${
-                  idx === activeSlide ? 'w-4 bg-[#E5733A]' : 'w-1.5 bg-white/60 hover:bg-white'
-                }`}
-                aria-label={`Slide ${idx + 1}`}
-              />
-            ))}
           </div>
         )}
 
         {/* Top Badges */}
-        <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-10">
+        <div className="absolute top-3 left-3 right-3 flex items-center justify-between pointer-events-none z-20">
           <div className="flex items-center gap-1.5 flex-wrap">
             <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-[10px] bg-[#2E2118]/85 backdrop-blur-md text-[#F8F5F0] text-[11px] font-semibold tracking-wide border border-white/10 shadow-xs pointer-events-auto">
               {getTypeIcon()}
@@ -234,7 +260,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         </div>
 
         {/* Bottom Image Overlay Info (City & Rating) */}
-        <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-white text-xs z-10">
+        <div className="absolute bottom-2.5 left-3 right-3 flex items-center justify-between text-white text-xs z-10 pointer-events-none">
           <div className="flex items-center gap-1 font-medium bg-[#2E2118]/70 backdrop-blur-xs px-2 py-0.5 rounded-[8px]">
             <MapPin className="w-3.5 h-3.5 text-[#C98B4B]" />
             <span className="truncate max-w-[150px]">{loc.city}</span>
