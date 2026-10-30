@@ -1,0 +1,332 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --font-heading: 'Playfair Display', Georgia, serif;
+    --font-serif: 'Playfair Display', Georgia, serif;
+    --font-body: 'Poppins', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-arabic-heading: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
+    --font-arabic-body: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
+
+    /* Toubkal & High Atlas Mountain Palette (Strictly ZERO blue) */
+    --color-snow-white: #F8F5F0;
+    --color-atlas-rock-red: #9C4A2F;
+    --color-mountain-ochre: #C98B4B;
+    --color-dark-rock-brown: #2E2118;
+    --color-juniper-green: #55663A;
+    --color-sunrise-orange: #E5733A;
+
+    /* Semi-transparent Glassmorphism Card Settings */
+    --card-opacity: 0.65;
+
+    /* Semantic Warm Aliases */
+    --color-primary: #9C4A2F;
+    --color-secondary: #C98B4B;
+    --color-accent: #E5733A;
+    --color-nature: #55663A;
+    --color-surface: #F8F5F0;
+    --color-text: #2E2118;
+  }
+
+  html {
+    overflow-x: clip;
+    overflow-y: scroll;
+    text-size-adjust: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    font-family: var(--font-body);
+    background-color: #F8F5F0;
+    color: #2E2118;
+    min-height: 100dvh;
+    overflow-x: clip;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button, a, input, select, textarea {
+    touch-action: manipulation;
+  }
+
+  /* Latin Headings in Playfair Display */
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-heading);
+    letter-spacing: -0.015em;
+  }
+
+  /* Arabic Typography Rules (Active when lang=ar or dir=rtl) */
+  html[lang="ar"],
+  html[dir="rtl"],
+  [lang="ar"],
+  [dir="rtl"] {
+    font-family: var(--font-arabic-body);
+  }
+
+  html[lang="ar"] body,
+  html[dir="rtl"] body,
+  [dir="rtl"] body {
+    font-family: var(--font-arabic-body);
+    line-height: 1.65;
+  }
+
+  /* Arabic Headings in Cairo */
+  html[lang="ar"] h1, html[lang="ar"] h2, html[lang="ar"] h3, html[lang="ar"] h4, html[lang="ar"] h5, html[lang="ar"] h6,
+  html[dir="rtl"] h1, html[dir="rtl"] h2, html[dir="rtl"] h3, html[dir="rtl"] h4, html[dir="rtl"] h5, html[dir="rtl"] h6,
+  [dir="rtl"] h1, [dir="rtl"] h2, [dir="rtl"] h3, [dir="rtl"] h4, [dir="rtl"] h5, [dir="rtl"] h6,
+  [lang="ar"] h1, [lang="ar"] h2, [lang="ar"] h3, [lang="ar"] h4, [lang="ar"] h5, [lang="ar"] h6 {
+    font-family: var(--font-arabic-heading);
+    letter-spacing: 0 !important;
+    line-height: 1.35;
+  }
+
+  html[lang="ar"] *,
+  html[dir="rtl"] *,
+  [lang="ar"] *,
+  [dir="rtl"] * {
+    letter-spacing: 0 !important;
+  }
+}
+
+.font-heading {
+  font-family: var(--font-heading);
+}
+
+.font-body {
+  font-family: var(--font-body);
+}
+
+.font-arabic-heading,
+.font-arabic-body {
+  font-family: var(--font-arabic-heading);
+  letter-spacing: 0 !important;
+}
+
+/* Subtle Amazigh Geometric Pattern in Warm Atlas Ochre & Rock Red */
+.bg-amazigh-pattern {
+  background-image: 
+    linear-gradient(45deg, rgba(156, 74, 47, 0.05) 25%, transparent 25%),
+    linear-gradient(-45deg, rgba(156, 74, 47, 0.05) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, rgba(201, 139, 75, 0.06) 75%),
+    linear-gradient(-45deg, transparent 75%, rgba(201, 139, 75, 0.06) 75%);
+  background-size: 20px 20px;
+  background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+.bg-amazigh-dark {
+  background-image: radial-gradient(rgba(201, 139, 75, 0.16) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* Toubkal Cards: Modern rounded corners with soft multi-layered warm shadows */
+.card-toubkal {
+  border-radius: 16px;
+  box-shadow: 0 10px 30px -6px rgba(46, 33, 24, 0.07), 0 2px 8px -2px rgba(46, 33, 24, 0.03);
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.card-toubkal-hover:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 20px 40px -10px rgba(46, 33, 24, 0.15), 0 6px 14px -3px rgba(156, 74, 47, 0.1);
+}
+
+/* Glassmorphism System: Semi-transparent white (0.35 - 0.5), 14px-16px blur, thin light border, soft warm shadow */
+.glass-box {
+  background: rgba(255, 255, 255, 0.42);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 10px 32px -6px rgba(46, 33, 24, 0.08), 0 2px 8px -2px rgba(46, 33, 24, 0.03);
+}
+
+.glass-box-elevated {
+  background: rgba(255, 255, 255, 0.52);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  box-shadow: 0 16px 42px -8px rgba(46, 33, 24, 0.11), 0 4px 12px -2px rgba(46, 33, 24, 0.04);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.45);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 8px 24px -4px rgba(46, 33, 24, 0.07), 0 2px 6px -1px rgba(46, 33, 24, 0.03);
+  transition: transform 0.28s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.28s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, background 0.25s ease;
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(255, 255, 255, 0.85);
+  transform: translateY(-3px);
+  box-shadow: 0 20px 42px -8px rgba(46, 33, 24, 0.13), 0 6px 16px -2px rgba(156, 74, 47, 0.08);
+}
+
+.glass-panel-subtle {
+  background: rgba(255, 255, 255, 0.35);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.45);
+}
+
+.glass-input {
+  background: rgba(255, 255, 255, 0.6);
+  -webkit-backdrop-filter: blur(10px);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.65);
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus {
+  background: rgba(255, 255, 255, 0.9);
+  border-color: #9C4A2F;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(156, 74, 47, 0.15);
+}
+
+/* Glassmorphism Cards: Semi-transparent white with backdrop blur & subtle border */
+.card-glassmorphism {
+  background: rgba(255, 255, 255, 0.45);
+  -webkit-backdrop-filter: blur(14px);
+  backdrop-filter: blur(14px);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  box-shadow: 0 12px 36px -8px rgba(46, 33, 24, 0.12), 0 2px 8px -2px rgba(46, 33, 24, 0.04);
+}
+
+/* Optimized blur for mobile devices to prevent frame drops on lower-end GPUs */
+@media (max-width: 640px) {
+  .card-glassmorphism, .glass-box, .glass-card {
+    -webkit-backdrop-filter: blur(8px);
+    backdrop-filter: blur(8px);
+  }
+}
+
+.card-glassmorphism-interactive:hover {
+  background: rgba(255, 255, 255, 0.62);
+  border-color: rgba(255, 255, 255, 0.85);
+  box-shadow: 0 18px 44px -10px rgba(46, 33, 24, 0.16), 0 4px 12px -2px rgba(156, 74, 47, 0.08);
+}
+
+/* Smooth Entrance Animation */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-up {
+  animation: fadeInUp 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-fade-up {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+}
+
+/* Mountain Ridge Silhouette Divider */
+.mountain-divider {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  line-height: 0;
+}
+
+.mountain-divider svg {
+  position: relative;
+  display: block;
+  width: calc(100% + 1.3px);
+  height: 48px;
+}
+
+@media (min-width: 768px) {
+  .mountain-divider svg {
+    height: 72px;
+  }
+}
+
+/* Toubkal Warm Glow Effects */
+.glow-atlas {
+  box-shadow: 0 0 18px rgba(156, 74, 47, 0.4), 0 2px 8px rgba(46, 33, 24, 0.15);
+}
+
+.glow-atlas:hover {
+  box-shadow: 0 0 26px rgba(156, 74, 47, 0.6), 0 4px 14px rgba(46, 33, 24, 0.22);
+}
+
+.glow-sunrise {
+  box-shadow: 0 0 18px rgba(229, 115, 58, 0.45), 0 2px 8px rgba(46, 33, 24, 0.15);
+}
+
+.glow-sunrise:hover {
+  box-shadow: 0 0 26px rgba(229, 115, 58, 0.65), 0 4px 14px rgba(229, 115, 58, 0.25);
+}
+
+.glow-juniper {
+  box-shadow: 0 0 16px rgba(85, 102, 58, 0.4);
+}
+
+/* Subtle Ken Burns Parallax on Hero Panorama */
+@keyframes toubkalPan {
+  0% {
+    transform: scale(1.02) translate(0%, 0%);
+  }
+  50% {
+    transform: scale(1.06) translate(-1%, -0.5%);
+  }
+  100% {
+    transform: scale(1.03) translate(0.5%, 0.5%);
+  }
+}
+
+.animate-toubkal-pan {
+  animation: toubkalPan 26s ease-in-out infinite alternate;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-toubkal-pan {
+    animation: none;
+  }
+}
+
+/* Custom Scrollbar in Mountain Ochre & Atlas Red */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #F8F5F0;
+}
+::-webkit-scrollbar-thumb {
+  background: #C98B4B;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9C4A2F;
+}
+
+/* Hide scrollbars on horizontal filter lists */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Safe area padding utilities */
+.safe-pb {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom, 0px));
+}
+.safe-pt {
+  padding-top: max(1rem, env(safe-area-inset-top, 0px));
+}

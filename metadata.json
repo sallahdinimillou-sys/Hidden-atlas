@@ -1,0 +1,8 @@
+{
+  "name": "Hidden Atlas - Toubkal & Moroccan Local Tour Guide",
+  "description": "Personal website of your certified local Moroccan tour guide in Mount Toubkal and the High Atlas Mountains. Browse activities, mountain treks, desert tours, and contact directly on WhatsApp.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}

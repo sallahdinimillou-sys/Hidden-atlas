@@ -1,0 +1,10 @@
+# robots.txt for Hidden Atlas Morocco - Hossain Amalo Guiding
+User-agent: *
+Allow: /
+Disallow: /admin
+
+# Host
+Host: https://hidenatlas.vercel.app
+
+# Sitemaps
+Sitemap: https://hidenatlas.vercel.app/sitemap.xml

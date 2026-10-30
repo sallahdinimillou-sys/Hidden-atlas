@@ -1,0 +1,47 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 180 180" shape-rendering="geometricPrecision">
+  <defs>
+    <linearGradient id="atiBg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#3A291E" />
+      <stop offset="100%" stop-color="#2E2118" />
+    </linearGradient>
+    <linearGradient id="atiSunrise" x1="90" y1="18" x2="90" y2="90" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#E5733A" stop-opacity="0.95" />
+      <stop offset="100%" stop-color="#C98B4B" stop-opacity="0.1" />
+    </linearGradient>
+    <linearGradient id="atiRockRed" x1="54" y1="54" x2="90" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#C98B4B" />
+      <stop offset="45%" stop-color="#9C4A2F" />
+      <stop offset="100%" stop-color="#7E3720" />
+    </linearGradient>
+    <linearGradient id="atiShade" x1="90" y1="54" x2="135" y2="140" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#4A3426" />
+      <stop offset="100%" stop-color="#1E150F" />
+    </linearGradient>
+  </defs>
+
+  <!-- Background rounded badge -->
+  <rect width="180" height="180" rx="38" fill="url(#atiBg)" />
+  <rect width="170" height="170" x="5" y="5" rx="34" stroke="#C98B4B" stroke-width="2" stroke-opacity="0.4" fill="none" />
+
+  <!-- Sunrise Summit Glow -->
+  <circle cx="90" cy="72" r="46" fill="url(#atiSunrise)" />
+
+  <!-- Distant High Atlas Peaks -->
+  <polygon points="22,140 50,90 82,133" fill="#C98B4B" fill-opacity="0.7" />
+  <polygon points="100,136 133,82 162,140" fill="#4A3426" fill-opacity="0.8" />
+
+  <!-- Mount Toubkal Main Body -->
+  <polygon points="90,32 36,140 90,130" fill="url(#atiRockRed)" />
+  <polygon points="90,32 90,130 144,140" fill="url(#atiShade)" />
+
+  <!-- Snow-Capped Summit Peak Crown -->
+  <polygon points="90,32 68,75 82,68 90,75" fill="#FFFFFF" />
+  <polygon points="90,32 90,75 99,66 112,75" fill="#F8F5F0" />
+  <path d="M90 32 L90 75" stroke="#FFFFFF" stroke-width="2" stroke-linecap="round" />
+
+  <!-- Imlil Valley Juniper Green Accent -->
+  <path d="M25 140 Q 58 131, 90 135 T 155 140 L 155 151 Q 90 155, 25 151 Z" fill="#55663A" />
+
+  <!-- Summit Star -->
+  <circle cx="90" cy="20" r="4.5" fill="#E5733A" />
+</svg>

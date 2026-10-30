@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "activity": {
+      "title": "Activities and Tours",
+      "description": "Catalog of Agadir & Souss activities, tours, riads, and excursions",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string", "description": "Title of the activity/tour" },
+        "arabicTitle": { "type": "string", "description": "Arabic localized title" },
+        "description": { "type": "string", "description": "Full detailed description" },
+        "overview": { "type": "string", "description": "Overview of the tour or stay" },
+        "tagline": { "type": "string", "description": "Short catchy subtitle" },
+        "price": { "type": "number", "description": "Price in MAD" },
+        "priceMAD": { "type": "number", "description": "Price in MAD" },
+        "priceUSD": { "type": "number", "description": "Calculated or fixed USD price" },
+        "priceEUR": { "type": "number", "description": "Calculated or fixed EUR price" },
+        "priceGBP": { "type": "number", "description": "Calculated or fixed GBP price" },
+        "duration": { "type": "string", "description": "Duration (e.g. 3-4 Hours, 3 Days)" },
+        "type": { "type": "string", "description": "activity, trip, hotel" },
+        "category": { "type": "string", "description": "Activity category" },
+        "region": { "type": "string", "description": "taghazout, paradise-valley, agadir-beach, souss-valley, tifnit-massa, aourir" },
+        "city": { "type": "string", "description": "City or specific location" },
+        "location": { "type": "string", "description": "Exact area name" },
+        "images": { "type": "array", "description": "Array of image URLs from Storage/Uploads" },
+        "imageUrl": { "type": "string", "description": "Primary hero image URL" },
+        "gallery": { "type": "array", "description": "Gallery array of image URLs" },
+        "availability": { "type": "string", "description": "available, limited, sold_out" },
+        "status": { "type": "string", "description": "published, draft, archived" },
+        "rating": { "type": "number", "description": "Average review rating" },
+        "reviewsCount": { "type": "number", "description": "Number of reviews" },
+        "highlights": { "type": "array", "description": "List of highlights" },
+        "included": { "type": "array", "description": "Included items" },
+        "notIncluded": { "type": "array", "description": "Not included items" },
+        "meetingPoint": { "type": "string", "description": "Meeting or pickup point" },
+        "cancellationPolicy": { "type": "string", "description": "Cancellation policy statement" },
+        "hostName": { "type": "string", "description": "Guide/Host name" },
+        "hostRole": { "type": "string", "description": "Guide/Host title" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["title", "priceMAD", "duration", "region"]
+    },
+    "booking": {
+      "title": "Bookings and Reservations",
+      "description": "Traveler bookings for tours, activities, and boutique stays",
+      "type": "object",
+      "properties": {
+        "bookingRef": { "type": "string", "description": "Unique booking reference code" },
+        "startDate": { "type": "string", "description": "Booking date" },
+        "totalPriceMAD": { "type": "number", "description": "Total price in MAD" },
+        "status": { "type": "string", "description": "confirmed, pending, cancelled" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["bookingRef", "startDate", "totalPriceMAD"]
+    },
+    "inquiry": {
+      "title": "Contact Inquiries & Messages",
+      "description": "Messages submitted by travelers from the contact form",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Sender name" },
+        "phone": { "type": "string", "description": "Phone or WhatsApp number" },
+        "email": { "type": "string", "description": "Sender email" },
+        "subject": { "type": "string", "description": "Inquiry subject or interest" },
+        "message": { "type": "string", "description": "Inquiry message text" },
+        "status": { "type": "string", "description": "unread, contacted, resolved" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["name", "message"]
+    },
+    "settings": {
+      "title": "Site Settings",
+      "description": "Global configuration including WhatsApp, social links, guide profile and hero banner",
+      "type": "object",
+      "properties": {
+        "whatsappNumber": { "type": "string", "description": "Target WhatsApp number e.g. +212662634926" },
+        "whatsappDisplay": { "type": "string", "description": "Display format e.g. 0662634926" },
+        "facebookUrl": { "type": "string", "description": "Facebook profile or page URL" },
+        "instagramUrl": { "type": "string", "description": "Instagram profile URL" },
+        "heroImageUrl": { "type": "string", "description": "Custom hero panorama image URL" },
+        "guideName": { "type": "string", "description": "Tour guide name" },
+        "guideRole": { "type": "string", "description": "Tour guide subtitle" },
+        "email": { "type": "string", "description": "Contact email address" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp" }
+      }
+    },
+    "activityImage": {
+      "title": "Activity Detail Image",
+      "description": "Compressed high-resolution gallery image stored as dedicated subcollection document",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique image identifier" },
+        "activityId": { "type": "string", "description": "Parent activity document ID" },
+        "dataUrl": { "type": "string", "description": "Compressed WebP/JPEG data URL (<150KB)" },
+        "index": { "type": "number", "description": "Display order index" },
+        "createdAt": { "type": "string", "description": "ISO timestamp" }
+      },
+      "required": ["id", "activityId", "dataUrl"]
+    }
+  },
+  "firestore": {
+    "/activities/{activityId}": {
+      "schema": { "$ref": "#/entities/activity" },
+      "description": "Catalog of activities, experiences, and accommodations"
+    },
+    "/activities/{activityId}/images/{imageId}": {
+      "schema": { "$ref": "#/entities/activityImage" },
+      "description": "Subcollection storing compressed full gallery images per activity"
+    },
+    "/bookings/{bookingId}": {
+      "schema": { "$ref": "#/entities/booking" },
+      "description": "Customer reservations"
+    },
+    "/inquiries/{inquiryId}": {
+      "schema": { "$ref": "#/entities/inquiry" },
+      "description": "Traveler inquiries and contact messages"
+    },
+    "/settings/{settingId}": {
+      "schema": { "$ref": "#/entities/settings" },
+      "description": "Global website configuration for WhatsApp, social channels and guide profile"
+    }
+  }
+}
