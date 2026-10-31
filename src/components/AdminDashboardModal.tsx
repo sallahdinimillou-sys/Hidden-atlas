@@ -51,7 +51,8 @@ import {
   reorderActivitiesInFirestore,
   DEFAULT_SITE_SETTINGS,
   fetchActivityImages,
-  isStockPhoto
+  isStockPhoto,
+  deduplicateImages
 } from '../lib/firebase';
 import { WhatsAppIcon } from './Navbar';
 
@@ -305,8 +306,10 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     setIsAvailable(true);
     setSelectedFiles([]);
     setFilePreviews([]);
-    const baseImages = (item.gallery && item.gallery.length > 0 ? [...item.gallery] : (item.imageUrl ? [item.imageUrl] : []))
-      .filter((u) => !isStockPhoto(u));
+    // Initial base images: de-duplicated
+    const baseImages = deduplicateImages(
+      item.gallery && item.gallery.length > 0 ? item.gallery : (item.imageUrl ? [item.imageUrl] : [])
+    );
     setExistingImages(baseImages);
     setValidationErrors({});
     setErrorMessage(null);
@@ -314,12 +317,12 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
     setSaveStatusText('');
     setIsEditing(true);
 
-    // Lazily load detail subcollection images so admin sees all gallery images
+    // Lazily load detail subcollection images
     if (item.id) {
-      fetchActivityImages(item.id).then((subImgs) => {
+      fetchActivityImages(item.id, true).then((subImgs) => {
         if (subImgs && subImgs.length > 0) {
-          const cleanSub = subImgs.filter((u) => !isStockPhoto(u));
-          setExistingImages((prev) => Array.from(new Set([...prev, ...cleanSub])));
+          // Subcollection holds the true full images; set cleanly without appending duplicate thumbnail
+          setExistingImages(deduplicateImages(subImgs));
         }
       });
     }
@@ -408,29 +411,48 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (!e.target.files || e.target.files.length === 0) return;
-    const fileList = Array.from(e.target.files) as File[];
-    const currentCount = existingImages.length + selectedFiles.length;
-    const MAX_IMAGES = 10;
-
-    if (currentCount >= MAX_IMAGES) {
-      setErrorMessage('الحد الأقصى هو 10 صور لكل نشاط. يرجى حذف بعض الصور القديمة لإضافة صور جديدة.');
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      return;
-    }
-
-    const availableSlots = MAX_IMAGES - currentCount;
-    let acceptedFiles = fileList;
-    if (fileList.length > availableSlots) {
-      setErrorMessage(`تم قبول ${availableSlots} ${availableSlots === 1 ? 'صورة فقط' : 'صور فقط'} للوصول للحد الأقصى المسموح (10 صور). تم ضغط وتجهيز الصور تلقائياً.`);
-      acceptedFiles = fileList.slice(0, availableSlots);
-    } else {
-      setErrorMessage(null);
-    }
-
-    const newPreviews = acceptedFiles.map((file) => URL.createObjectURL(file));
-    setSelectedFiles((prev) => [...prev, ...acceptedFiles]);
-    setFilePreviews((prev) => [...prev, ...newPreviews]);
+    const incomingFiles = Array.from(e.target.files) as File[];
     if (fileInputRef.current) fileInputRef.current.value = '';
+
+    setSelectedFiles((prevSelected) => {
+      const existingFingerprints = new Set(
+        prevSelected.map((f) => `${f.name}_${f.size}_${f.lastModified}`)
+      );
+
+      const uniqueFiles: File[] = [];
+      for (const file of incomingFiles) {
+        const fp = `${file.name}_${file.size}_${file.lastModified}`;
+        if (!existingFingerprints.has(fp)) {
+          existingFingerprints.add(fp);
+          uniqueFiles.push(file);
+        }
+      }
+
+      if (uniqueFiles.length === 0) {
+        return prevSelected;
+      }
+
+      const currentCount = existingImages.length + prevSelected.length;
+      const MAX_IMAGES = 10;
+      const availableSlots = Math.max(0, MAX_IMAGES - currentCount);
+
+      if (availableSlots <= 0) {
+        setErrorMessage('الحد الأقصى هو 10 صور لكل نشاط. يرجى حذف بعض الصور القديمة لإضافة صور جديدة.');
+        return prevSelected;
+      }
+
+      const filesToAdd = uniqueFiles.slice(0, availableSlots);
+      if (uniqueFiles.length > availableSlots) {
+        setErrorMessage(`تم قبول ${availableSlots} ${availableSlots === 1 ? 'صورة فقط' : 'صور فقط'} للوصول للحد الأقصى (10 صور).`);
+      } else {
+        setErrorMessage(null);
+      }
+
+      const newPreviews = filesToAdd.map((file) => URL.createObjectURL(file));
+      setFilePreviews((prevPreviews) => [...prevPreviews, ...newPreviews]);
+
+      return [...prevSelected, ...filesToAdd];
+    });
   };
 
   const handleRemoveNewFile = (index: number) => {
@@ -533,6 +555,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
 
   const handleSaveForm = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return; // Prevent double submission!
     if (!activeItem) return;
     if (!validateForm()) return;
 
@@ -560,7 +583,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         priceMAD = 450;
       }
 
-      const cleanExisting = existingImages.filter(img => !isStockPhoto(img));
+      const cleanExisting = deduplicateImages(existingImages);
       const cleanActiveUrl = activeItem.imageUrl && !isStockPhoto(activeItem.imageUrl) ? activeItem.imageUrl : '';
       const primaryCover = cleanExisting.length > 0 
         ? cleanExisting[0] 
@@ -598,7 +621,7 @@ export const AdminDashboardModal: React.FC<AdminDashboardModalProps> = ({
         city: cityName,
         location: `${cityName}، المغرب`,
         imageUrl: primaryCover,
-        gallery: existingImages,
+        gallery: cleanExisting,
         highlights: activeItem.highlights && activeItem.highlights.length > 0 
           ? activeItem.highlights 
           : ['مرشد محلي معتمد ومرخص', 'إطلالات طبيعية خلابة', 'شاي مغربي أصيل'],

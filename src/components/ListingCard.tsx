@@ -18,7 +18,7 @@ import { getLocalizedListing } from '../data/localizedContent';
 import { WhatsAppIcon } from './Navbar';
 import { MountainLineIcon } from './AtlasLineIcons';
 import { getLowestTierPrice, getCurrencySymbol } from '../utils/groupPricing';
-import { fetchActivityImages, isStockPhoto } from '../lib/firebase';
+import { fetchActivityImages, isStockPhoto, deduplicateImages } from '../lib/firebase';
 
 interface ListingCardProps {
   item: ListingItem;
@@ -46,7 +46,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   // Images list: show ONLY user-uploaded images, first is cover
   const [images, setImages] = useState<string[]>(() => {
     const list = [item.imageUrl, ...(item.gallery || [])].filter((url) => Boolean(url) && !isStockPhoto(url));
-    return Array.from(new Set(list));
+    return deduplicateImages(list);
   });
 
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -60,10 +60,8 @@ export const ListingCard: React.FC<ListingCardProps> = ({
         if (!isMounted) return;
         const valid = subImgs.filter((img) => Boolean(img) && !isStockPhoto(img));
         if (valid.length > 0) {
-          setImages((prev) => {
-            const merged = Array.from(new Set([...prev, ...valid]));
-            return merged;
-          });
+          // Subcollection contains the full user images; replace thumbnail cleanly
+          setImages(deduplicateImages(valid));
         }
       });
     }

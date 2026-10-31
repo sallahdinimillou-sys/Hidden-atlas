@@ -9,7 +9,7 @@ import { ImageLightboxModal } from './ImageLightboxModal';
 import { MountainLineIcon } from './AtlasLineIcons';
 import { GroupPricingTable } from './GroupPricingTable';
 import { findMatchingTier, getCurrencySymbol } from '../utils/groupPricing';
-import { fetchActivityImages, isStockPhoto } from '../lib/firebase';
+import { fetchActivityImages, isStockPhoto, deduplicateImages } from '../lib/firebase';
 
 interface ItemDetailModalProps {
   item: ListingItem;
@@ -49,7 +49,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
     if (isOpen && item?.id) {
       fetchActivityImages(item.id).then((subImgs) => {
         if (isMounted && subImgs && subImgs.length > 0) {
-          const clean = subImgs.filter((u) => Boolean(u) && !isStockPhoto(u));
+          const clean = deduplicateImages(subImgs.filter((u) => Boolean(u) && !isStockPhoto(u)));
           setSubcollectionPhotos(clean);
         }
       });
@@ -71,7 +71,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
   const rawPhotos = subcollectionPhotos.length > 0
     ? subcollectionPhotos
     : [item.imageUrl, ...(item.gallery || [])];
-  const allPhotos = Array.from(new Set(rawPhotos.filter((p) => Boolean(p) && !isStockPhoto(p))));
+  const allPhotos = deduplicateImages(rawPhotos.filter((p) => Boolean(p) && !isStockPhoto(p)));
   const currentPhotoIndex = Math.min(selectedPhotoIndex, Math.max(0, allPhotos.length - 1));
 
   // Touch handlers for mobile gallery swipe

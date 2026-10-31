@@ -26,9 +26,9 @@ export const AboutSection: React.FC<AboutSectionProps> = ({ currentLang, whatsap
   );
 
   return (
-    <section id="about-section" className="relative bg-transparent pt-0 pb-16 sm:pb-24 overflow-hidden">
+    <section id="about-section" className="relative bg-[#F4E8D2] pt-0 pb-16 sm:pb-24 overflow-hidden border-y border-[#C98B4B]/20">
       {/* Mountain Ridge Divider from previous section */}
-      <MountainRidgeDivider fillColor="#F8F5F0" bgColor="transparent" />
+      <MountainRidgeDivider fillColor="#F8F5F0" bgColor="#F4E8D2" />
 
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8 pt-10 sm:pt-14 relative z-10">
         

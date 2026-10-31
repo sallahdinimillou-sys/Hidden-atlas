@@ -276,10 +276,61 @@ export function isStockPhoto(url?: string): boolean {
 const activityImagesCache = new Map<string, string[]>();
 
 /**
+ * Computes a robust fingerprint for an image (URL or data URL)
+ * so duplicates are identified regardless of minor query variations
+ */
+export function getImageFingerprint(src: string): string {
+  if (!src || typeof src !== 'string') return '';
+  const trimmed = src.trim();
+  if (trimmed.startsWith('http://') || trimmed.startsWith('https://')) {
+    return trimmed.split('?')[0];
+  }
+  if (trimmed.startsWith('data:')) {
+    const len = trimmed.length;
+    // Samples header, middle, and tail to uniquely identify the base64 content
+    const midIdx = Math.floor(len / 2);
+    const sample = trimmed.slice(Math.min(40, len), Math.min(100, len));
+    const mid = trimmed.slice(midIdx, midIdx + 40);
+    const end = trimmed.slice(-40);
+    return `data_${len}_${sample}_${mid}_${end}`;
+  }
+  return trimmed.slice(0, 120);
+}
+
+/**
+ * De-duplicates an array of image URLs or data URLs, preserving the first occurrence and order
+ */
+export function deduplicateImages(urls: string[]): string[] {
+  if (!Array.isArray(urls)) return [];
+  const seenExact = new Set<string>();
+  const seenFingerprints = new Set<string>();
+  const result: string[] = [];
+
+  for (const url of urls) {
+    if (!url || typeof url !== 'string' || isStockPhoto(url)) continue;
+    const trimmed = url.trim();
+    if (!trimmed) continue;
+
+    if (seenExact.has(trimmed)) continue;
+
+    const fp = getImageFingerprint(trimmed);
+    if (seenFingerprints.has(fp)) continue;
+
+    seenExact.add(trimmed);
+    seenFingerprints.add(fp);
+    result.push(trimmed);
+  }
+
+  return result;
+}
+
+/**
  * Stores activity images safely according to the strict byte budget:
+ * - De-duplicates images so every image is saved ONCE
+ * - Cleans up old subcollection documents for this activity so no ghost/duplicate docs remain
+ * - Uses deterministic document IDs (img_0, img_1, etc.)
  * - Resizes full image to max 1280px, <= 150 KB
  * - Resizes thumbnail to max 400px, <= 30 KB
- * - Tries Firebase Storage first; if unavailable, stores in subcollection `activities/{activityId}/images/{imageId}`
  * - The main activity document NEVER stores large base64 images, only the small <= 30 KB thumbnail!
  */
 export async function storeActivityImages(
@@ -288,42 +339,44 @@ export async function storeActivityImages(
   existingUrls: string[] = [],
   onProgress?: SaveProgressCallback
 ): Promise<StoredImagesPackage> {
-  // Purge any stock photo from existingUrls immediately so only user images are kept
-  const cleanExisting = Array.from(
-    new Set(existingUrls.filter((u) => Boolean(u) && !isStockPhoto(u)))
-  ).slice(0, 10);
-  const allowedNewFiles = newFiles.slice(0, Math.max(0, 10 - cleanExisting.length));
-  const totalCount = cleanExisting.length + allowedNewFiles.length;
+  // 1. Purge stock photos and de-duplicate existing URLs
+  const cleanExisting = deduplicateImages(existingUrls).slice(0, 10);
 
-  let hasSubcollectionImages = false;
-  const cleanGalleryUrls: string[] = [];
-  let primaryThumbnail = '';
+  // 2. De-duplicate new files by fingerprint
+  const seenFileFp = new Set<string>();
+  const uniqueNewFiles: File[] = [];
+  for (const file of newFiles) {
+    const fp = `${file.name}_${file.size}_${file.lastModified}`;
+    if (!seenFileFp.has(fp)) {
+      seenFileFp.add(fp);
+      uniqueNewFiles.push(file);
+    }
+  }
+
+  const allowedSlots = Math.max(0, 10 - cleanExisting.length);
+  const allowedNewFiles = uniqueNewFiles.slice(0, allowedSlots);
+
+  // Structure to hold final ordered list of unique images
+  interface ImageEntry {
+    fullDataUrlOrHttp: string;
+    thumbnailUrl?: string;
+  }
+  const finalImageEntries: ImageEntry[] = [];
 
   // Process existing images
   for (let i = 0; i < cleanExisting.length; i++) {
     const url = cleanExisting[i];
-    if (typeof url === 'string') {
-      if (url.startsWith('http://') || url.startsWith('https://')) {
-        cleanGalleryUrls.push(url);
-        if (!primaryThumbnail) primaryThumbnail = url;
-      } else if (url.startsWith('data:')) {
-        // Base64 existing image: compress to budget and store in subcollection
-        try {
-          const pkg = await processActivityImage(url);
-          if (!primaryThumbnail) primaryThumbnail = pkg.thumbnail.dataUrl;
-
-          const imgDocId = `img_exist_${i}_${Date.now().toString(36)}`;
-          await setDoc(doc(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES, imgDocId), {
-            id: imgDocId,
-            activityId,
-            dataUrl: pkg.full.dataUrl,
-            index: i,
-            createdAt: new Date().toISOString()
-          });
-          hasSubcollectionImages = true;
-        } catch (err) {
-          console.warn('Could not re-compress existing base64 image:', err);
-        }
+    if (url.startsWith('http://') || url.startsWith('https://')) {
+      finalImageEntries.push({ fullDataUrlOrHttp: url, thumbnailUrl: url });
+    } else if (url.startsWith('data:')) {
+      try {
+        const pkg = await processActivityImage(url);
+        finalImageEntries.push({
+          fullDataUrlOrHttp: pkg.full.dataUrl,
+          thumbnailUrl: pkg.thumbnail.dataUrl
+        });
+      } catch (err) {
+        finalImageEntries.push({ fullDataUrlOrHttp: url });
       }
     }
   }
@@ -331,26 +384,22 @@ export async function storeActivityImages(
   // Process new uploaded files
   if (allowedNewFiles.length > 0) {
     if (onProgress) {
-      onProgress(20, `جاري ضغط ومعالجة ${allowedNewFiles.length} ${allowedNewFiles.length === 1 ? 'صورة' : 'صور'} بتقنية WebP...`);
+      onProgress(20, `جاري معالجة وضغط ${allowedNewFiles.length} ${allowedNewFiles.length === 1 ? 'صورة' : 'صور'} بتقنية WebP...`);
     }
 
     for (let index = 0; index < allowedNewFiles.length; index++) {
       const file = allowedNewFiles[index];
-      const overallIndex = cleanExisting.length + index;
-
       if (onProgress) {
         const pct = Math.round(20 + ((index + 1) / allowedNewFiles.length) * 55);
         onProgress(pct, `جاري تجهيز الصورة ${index + 1} من ${allowedNewFiles.length}...`);
       }
 
-      // Step 1: Compress to budget: full <= 150KB, thumbnail <= 30KB
+      // Compress to strict budget: full <= 150KB, thumbnail <= 30KB
       const pkg = await processActivityImage(file);
-      if (!primaryThumbnail) {
-        primaryThumbnail = pkg.thumbnail.dataUrl;
-      }
 
-      // Step 2: Attempt Firebase Storage upload
+      // Try Firebase Storage upload
       let storageUploaded = false;
+      let downloadUrl = '';
       try {
         const cleanName = file.name.replace(/[^a-zA-Z0-9.-]/g, '_');
         const extension = pkg.full.mimeType === 'image/webp' ? 'webp' : 'jpg';
@@ -367,48 +416,95 @@ export async function storeActivityImages(
         );
 
         const snapshot = await Promise.race([uploadTask, timeoutPromise]);
-        const downloadUrl = await getDownloadURL(snapshot.ref);
-
-        cleanGalleryUrls.push(downloadUrl);
+        downloadUrl = await getDownloadURL(snapshot.ref);
         storageUploaded = true;
-      } catch (storageErr) {
-        // Storage failed or timed out: use subcollection fallback
+      } catch {
         storageUploaded = false;
       }
 
-      // Step 3: If not stored in Storage, store in subcollection
-      if (!storageUploaded) {
-        const subDocId = `img_${overallIndex}_${Date.now().toString(36)}_${Math.random().toString(36).substring(2, 6)}`;
-        await setDoc(doc(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES, subDocId), {
-          id: subDocId,
-          activityId,
-          dataUrl: pkg.full.dataUrl, // <= 150 KB, well under 700KB and 1MB Firestore limit
-          index: overallIndex,
-          createdAt: new Date().toISOString()
+      if (storageUploaded && downloadUrl) {
+        finalImageEntries.push({
+          fullDataUrlOrHttp: downloadUrl,
+          thumbnailUrl: downloadUrl
         });
-        hasSubcollectionImages = true;
+      } else {
+        finalImageEntries.push({
+          fullDataUrlOrHttp: pkg.full.dataUrl,
+          thumbnailUrl: pkg.thumbnail.dataUrl
+        });
       }
     }
   }
 
-  // Cover image: first clean image or empty (NEVER a stock photo!)
-  if (!primaryThumbnail) {
-    primaryThumbnail = cleanGalleryUrls[0] || '';
+  // De-duplicate finalImageEntries by image fingerprint
+  const seenFp = new Set<string>();
+  const uniqueEntries: ImageEntry[] = [];
+  for (const entry of finalImageEntries) {
+    const fp = getImageFingerprint(entry.fullDataUrlOrHttp);
+    if (!seenFp.has(fp)) {
+      seenFp.add(fp);
+      uniqueEntries.push(entry);
+    }
   }
 
-  // Invalidate cache so newly stored images are loaded immediately
+  // 3. ATOMIC SUBCOLLECTION CLEANUP & SYNC:
+  // Delete all existing documents in subcollection first so no zombie/duplicate documents persist!
+  try {
+    const existingSubSnap = await getDocs(
+      collection(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES)
+    );
+    if (!existingSubSnap.empty) {
+      await Promise.all(existingSubSnap.docs.map((d) => deleteDoc(d.ref)));
+    }
+  } catch (cleanErr) {
+    console.warn('Subcollection cleanup warning:', cleanErr);
+  }
+
+  let hasSubcollectionImages = false;
+  const cleanGalleryUrls: string[] = [];
+  let primaryThumbnail = '';
+
+  // Write clean, deterministic documents: img_0, img_1, etc.
+  for (let i = 0; i < uniqueEntries.length; i++) {
+    const entry = uniqueEntries[i];
+    if (i === 0) {
+      primaryThumbnail = entry.thumbnailUrl || entry.fullDataUrlOrHttp;
+    }
+
+    if (entry.fullDataUrlOrHttp.startsWith('http://') || entry.fullDataUrlOrHttp.startsWith('https://')) {
+      cleanGalleryUrls.push(entry.fullDataUrlOrHttp);
+    } else {
+      // Store in subcollection with deterministic ID img_${i}
+      const docId = `img_${i}`;
+      await setDoc(doc(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES, docId), {
+        id: docId,
+        activityId,
+        dataUrl: entry.fullDataUrlOrHttp,
+        index: i,
+        createdAt: new Date().toISOString()
+      });
+      hasSubcollectionImages = true;
+    }
+  }
+
+  if (!primaryThumbnail && cleanGalleryUrls.length > 0) {
+    primaryThumbnail = cleanGalleryUrls[0];
+  }
+
+  // Invalidate in-memory cache
   activityImagesCache.delete(activityId);
 
   return {
     thumbnailUrl: primaryThumbnail,
     cleanGalleryUrls,
     hasSubcollectionImages,
-    totalImagesCount: totalCount
+    totalImagesCount: uniqueEntries.length
   };
 }
 
 /**
  * Fetch detail high-resolution gallery images from the subcollection lazily with in-memory caching
+ * Guarantees a de-duplicated array of images in ascending index order
  */
 export async function fetchActivityImages(activityId: string, bypassCache = false): Promise<string[]> {
   if (!activityId) return [];
@@ -422,25 +518,108 @@ export async function fetchActivityImages(activityId: string, bypassCache = fals
     const q = query(imagesRef, orderBy('index', 'asc'));
     const snap = await getDocs(q);
     if (!snap.empty) {
-      images = snap.docs
+      const raw = snap.docs
         .map((d) => d.data().dataUrl)
         .filter((u) => Boolean(u) && !isStockPhoto(u));
+      images = deduplicateImages(raw);
     }
   } catch (err) {
     try {
       const snap = await getDocs(collection(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES));
-      images = snap.docs
+      const raw = snap.docs
         .map((d) => d.data())
         .sort((a, b) => (a.index ?? 0) - (b.index ?? 0))
         .map((d) => d.dataUrl)
         .filter((u) => Boolean(u) && !isStockPhoto(u));
+      images = deduplicateImages(raw);
     } catch (e) {
       console.warn(`Could not fetch subcollection images for activity ${activityId}:`, e);
     }
   }
 
-  activityImagesCache.set(activityId, images);
-  return images;
+  const deduped = deduplicateImages(images);
+  activityImagesCache.set(activityId, deduped);
+  return deduped;
+}
+
+/**
+ * One-time safe cleanup migration for existing activities:
+ * Scans all activities and cleans any duplicated subcollection image documents (e.g. A, A, B, B)
+ * keeping only unique images and re-indexing them cleanly.
+ */
+export async function cleanupDuplicateActivityImages(): Promise<number> {
+  let cleanedActivities = 0;
+  try {
+    const snap = await getDocs(collection(db, ACTIVITIES_COLLECTION));
+    for (const docSnap of snap.docs) {
+      const activityId = docSnap.id;
+      const subSnap = await getDocs(collection(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES));
+      if (subSnap.size <= 1) continue;
+
+      const rawDocs = subSnap.docs.map((d) => ({
+        ref: d.ref,
+        id: d.id,
+        data: d.data()
+      }));
+
+      // Group and detect duplicates
+      const seenFp = new Set<string>();
+      const uniqueDocs: Array<{ dataUrl: string; index: number }> = [];
+      let hadDuplicates = false;
+
+      // Sort by index
+      rawDocs.sort((a, b) => (a.data.index ?? 0) - (b.data.index ?? 0));
+
+      for (const item of rawDocs) {
+        const url = item.data.dataUrl;
+        if (!url || isStockPhoto(url)) {
+          hadDuplicates = true;
+          continue;
+        }
+        const fp = getImageFingerprint(url);
+        if (seenFp.has(fp)) {
+          hadDuplicates = true;
+        } else {
+          seenFp.add(fp);
+          uniqueDocs.push({ dataUrl: url, index: uniqueDocs.length });
+        }
+      }
+
+      if (hadDuplicates || rawDocs.length !== uniqueDocs.length) {
+        console.log(`[Duplicate Image Fix] Cleaning duplicate images in activity ${activityId}: from ${rawDocs.length} to ${uniqueDocs.length}`);
+        // Delete all old docs
+        await Promise.all(rawDocs.map((d) => deleteDoc(d.ref)));
+
+        // Re-write unique docs with deterministic IDs
+        for (let idx = 0; idx < uniqueDocs.length; idx++) {
+          const docId = `img_${idx}`;
+          await setDoc(doc(db, ACTIVITIES_COLLECTION, activityId, SUBCOLLECTION_IMAGES, docId), {
+            id: docId,
+            activityId,
+            dataUrl: uniqueDocs[idx].dataUrl,
+            index: idx,
+            createdAt: new Date().toISOString()
+          });
+        }
+
+        activityImagesCache.delete(activityId);
+
+        // Update parent doc
+        const parentData = docSnap.data();
+        const primaryThumb = uniqueDocs[0]?.dataUrl ? (await processActivityImage(uniqueDocs[0].dataUrl)).thumbnail.dataUrl : parentData.imageUrl;
+        await updateDoc(docSnap.ref, {
+          imageUrl: primaryThumb || parentData.imageUrl || '',
+          totalImagesCount: uniqueDocs.length,
+          hasSubcollectionImages: uniqueDocs.length > 0,
+          updatedAt: new Date().toISOString()
+        });
+        cleanedActivities++;
+      }
+    }
+  } catch (err) {
+    console.warn('cleanupDuplicateActivityImages notice:', err);
+  }
+  return cleanedActivities;
 }
 
 /**
@@ -546,8 +725,8 @@ export function formatDocToListing(id: string, data: any): ListingItem {
     rawImages = [];
   }
 
-  // Filter out any stock photos completely
-  const images = Array.from(new Set(rawImages.filter((u) => Boolean(u) && !isStockPhoto(u))));
+  // Filter out any stock photos completely and de-duplicate
+  const images = deduplicateImages(rawImages.filter((u) => Boolean(u) && !isStockPhoto(u)));
   const primaryImageUrl = (!isStockPhoto(data.imageUrl) ? data.imageUrl : '') || images[0] || '';
 
   return {

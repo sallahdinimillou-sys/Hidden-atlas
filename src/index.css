@@ -29,6 +29,9 @@
   }
 
   html {
+    background-color: #F8F5F0 !important;
+    color: #2E2118;
+    color-scheme: light;
     overflow-x: clip;
     overflow-y: scroll;
     text-size-adjust: 100%;
@@ -37,13 +40,30 @@
 
   body {
     font-family: var(--font-body);
-    background-color: #F8F5F0;
+    background-color: #F8F5F0 !important;
     color: #2E2118;
+    color-scheme: light;
     min-height: 100dvh;
     overflow-x: clip;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  #root {
+    background-color: #F8F5F0 !important;
+    color: #2E2118;
+    min-height: 100dvh;
+    color-scheme: light;
+  }
+
+  /* Force light snow-white background even if phone/system is set to dark mode */
+  @media (prefers-color-scheme: dark) {
+    html, body, #root {
+      background-color: #F8F5F0 !important;
+      color: #2E2118 !important;
+      color-scheme: light !important;
+    }
   }
 
   button, a, input, select, textarea {
@@ -195,11 +215,17 @@
   box-shadow: 0 12px 36px -8px rgba(46, 33, 24, 0.12), 0 2px 8px -2px rgba(46, 33, 24, 0.04);
 }
 
-/* Optimized blur for mobile devices to prevent frame drops on lower-end GPUs */
 @media (max-width: 640px) {
   .card-glassmorphism, .glass-box, .glass-card {
     -webkit-backdrop-filter: blur(8px);
     backdrop-filter: blur(8px);
+  }
+}
+
+/* Solid background fallback when backdrop-filter is unsupported */
+@supports not ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))) {
+  .glass-card, .glass-box, .glass-box-elevated, .card-glassmorphism, .glass-panel-subtle, .glass-input {
+    background-color: #FFFFFF !important;
   }
 }
 

@@ -70,7 +70,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
   );
 
   return (
-    <section id="contact-section" className="py-16 sm:py-24 bg-transparent">
+    <section id="contact-section" className="py-16 sm:py-24 bg-[#F8F5F0]">
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
         
         {/* Header */}
