@@ -70,7 +70,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
   );
 
   return (
-    <section id="contact-section" className="py-16 sm:py-24 bg-[#F8F5F0]">
+    <section id="contact-section" className="py-16 sm:py-24 bg-white">
       <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
         
         {/* Header */}
@@ -388,7 +388,7 @@ export const ContactSection: React.FC<ContactSectionProps> = ({
             </div>
 
             {/* Responsive Map Container */}
-            <div className="relative w-full h-[280px] sm:h-[360px] rounded-[12px] overflow-hidden border border-white/50 bg-[#F8F5F0]">
+            <div className="relative w-full h-[280px] sm:h-[360px] rounded-[12px] overflow-hidden border border-white/50 bg-white">
               <iframe
                 title="Hidden Atlas Morocco Location Map"
                 src="https://maps.google.com/maps?q=31.0342497,-7.8828346&hl=en&z=12&output=embed"

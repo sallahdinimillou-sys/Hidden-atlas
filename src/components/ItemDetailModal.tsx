@@ -555,7 +555,7 @@ export const ItemDetailModal: React.FC<ItemDetailModalProps> = ({
         {/* Pinned Modal Bottom Bar Action with Sunrise Orange WhatsApp button */}
         <div 
           style={{ paddingBottom: 'max(0.75rem, env(safe-area-inset-bottom, 0px))' }}
-          className="shrink-0 p-3 sm:p-4 md:p-5 md:px-8 bg-[#F8F5F0] border-t border-[#C98B4B]/25 flex flex-col xs:flex-row xs:items-center justify-between gap-3 z-20 shadow-lg font-body"
+          className="shrink-0 p-3 sm:p-4 md:p-5 md:px-8 bg-white border-t border-[#C98B4B]/25 flex flex-col xs:flex-row xs:items-center justify-between gap-3 z-20 shadow-lg font-body"
         >
           <div className="flex items-center justify-between xs:block">
             <span className="text-[10px] sm:text-[11px] text-[#2E2118]/60 font-medium block">

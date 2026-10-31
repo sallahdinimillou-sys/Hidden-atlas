@@ -293,7 +293,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
             {loc.difficulty && (
               <>
                 <span className="text-[#C98B4B]/40">•</span>
-                <span className="px-1.5 py-0.2 rounded-[6px] bg-[#F8F5F0] text-[#9C4A2F] text-[10px] font-semibold border border-[#9C4A2F]/20">
+                <span className="px-1.5 py-0.2 rounded-[6px] bg-white text-[#9C4A2F] text-[10px] font-semibold border border-[#9C4A2F]/20">
                   {loc.difficulty}
                 </span>
               </>
@@ -373,7 +373,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
               id={`btn-view-details-${item.id}`}
               onClick={() => onViewDetails(item)}
               aria-label={`${t.viewDetails}: ${loc.title}`}
-              className="flex-1 xs:flex-none px-3.5 py-2.5 rounded-[10px] text-xs font-semibold text-[#9C4A2F] bg-[#F8F5F0] hover:bg-[#C98B4B]/15 border border-[#9C4A2F]/30 transition-colors shadow-2xs text-center min-h-[44px] flex items-center justify-center cursor-pointer font-body"
+              className="flex-1 xs:flex-none px-3.5 py-2.5 rounded-[10px] text-xs font-semibold text-[#9C4A2F] bg-white hover:bg-[#C98B4B]/15 border border-[#9C4A2F]/30 transition-colors shadow-2xs text-center min-h-[44px] flex items-center justify-center cursor-pointer font-body"
             >
               {t.viewDetails}
             </button>

@@ -13,7 +13,7 @@ interface MountainRidgeDividerProps {
  */
 export const MountainRidgeDivider: React.FC<MountainRidgeDividerProps> = ({
   className = '',
-  fillColor = '#F8F5F0',
+  fillColor = '#FFFFFF',
   bgColor = '#FFFFFF',
   flip = false
 }) => {
