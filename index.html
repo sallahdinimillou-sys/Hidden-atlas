@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="en" class="scroll-smooth bg-white" style="background-color: #FFFFFF; color-scheme: light;">
+<html lang="en" class="scroll-smooth bg-[#F8F5F0]" style="background-color: #F8F5F0; color-scheme: light;">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
@@ -51,6 +51,16 @@
 
     <!-- Canonical Tag -->
     <link rel="canonical" href="https://hidenatlas.vercel.app/" />
+
+    <!-- Preload Critical Hero Background Image -->
+    <link 
+      rel="preload" 
+      as="image" 
+      href="https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&w=1400&q=80" 
+      imagesrcset="https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&w=800&q=80 800w, https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&w=1920&q=80 1920w"
+      imagesizes="100vw"
+      fetchpriority="high" 
+    />
 
     <!-- Typography: Efficient Google Fonts with font-display: swap and essential weights only -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -160,7 +170,7 @@
     }
     </script>
   </head>
-  <body class="bg-white text-[#2E2118] font-sans antialiased selection:bg-[#9C4A2F] selection:text-white" style="background-color: #FFFFFF;">
+  <body class="bg-[#F8F5F0] text-[#2E2118] font-sans antialiased selection:bg-[#9C4A2F] selection:text-white">
     <!-- Accessible Pre-rendered Semantic Content for Search Engine Crawlers -->
     <noscript>
       <header>
@@ -189,7 +199,7 @@
       </main>
     </noscript>
 
-    <div id="root" style="background-color: #FFFFFF; min-height: 100vh; min-height: 100dvh;"></div>
+    <div id="root" style="background-color: #F8F5F0; min-height: 100vh; min-height: 100dvh;"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

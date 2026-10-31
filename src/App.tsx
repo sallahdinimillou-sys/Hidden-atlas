@@ -317,7 +317,7 @@ export default function App() {
     <div
       dir={isAr ? 'rtl' : 'ltr'}
       lang={currentLang}
-      className={`min-h-screen bg-white text-[#2E2118] flex flex-col selection:bg-[#9C4A2F] selection:text-white ${
+      className={`min-h-screen bg-[#F8F5F0] text-[#2E2118] flex flex-col selection:bg-[#9C4A2F] selection:text-white ${
         isAr ? 'font-arabic-body' : 'font-body'
       }`}
     >
@@ -335,7 +335,7 @@ export default function App() {
         whatsappNumber={siteSettings.whatsappNumber}
       />
 
-      <main className="flex-1 bg-white">
+      <main className="flex-1 bg-[#F8F5F0]">
         {/* 2. Hero Section (Toubkal Visual Identity, mountain divider, sunrise orange CTA) */}
         <HeroSection
           currentLang={currentLang}
@@ -349,7 +349,7 @@ export default function App() {
         />
 
         {/* 3. Interactive Catalog Filter Bar */}
-        <div id="catalog-grid-section" className="bg-white">
+        <div id="catalog-grid-section" className="bg-[#F8F5F0]">
           <CategoryFilterBar
             currentLang={currentLang}
             selectedType={selectedType}
@@ -362,7 +362,7 @@ export default function App() {
         </div>
 
         {/* 4. Filtered Listings Grid */}
-        <section className="py-14 sm:py-20 bg-white">
+        <section className="py-14 sm:py-20 bg-[#F8F5F0]">
           <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-8 sm:mb-10 flex-wrap gap-4">
               <div>
