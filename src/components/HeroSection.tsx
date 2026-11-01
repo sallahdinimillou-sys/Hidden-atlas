@@ -51,10 +51,9 @@ export const HeroSection: React.FC<HeroSectionProps> = ({
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  const rawBg = heroImageUrl || 'https://images.unsplash.com/photo-1489749798305-4fea3ae63d43';
-  const isUnsplash = rawBg.includes('images.unsplash.com');
-  const bgImageDesktop = isUnsplash ? `${rawBg.split('?')[0]}?auto=format&fit=crop&w=1920&q=80&fm=webp` : rawBg;
-  const bgImageMobile = isUnsplash ? `${rawBg.split('?')[0]}?auto=format&fit=crop&w=800&q=80&fm=webp` : rawBg;
+  const isDefaultHero = !heroImageUrl || heroImageUrl.includes('images.unsplash.com');
+  const bgImageDesktop = isDefaultHero ? '/assets/hero-atlas.webp' : heroImageUrl;
+  const bgImageMobile = isDefaultHero ? '/assets/hero-atlas-mobile.webp' : heroImageUrl;
 
   const directWhatsappUrl = getWhatsAppContactUrl(
     whatsappNumber,

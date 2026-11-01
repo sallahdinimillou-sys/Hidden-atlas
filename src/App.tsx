@@ -32,9 +32,7 @@ import {
   deleteFirestoreActivity,
   subscribeToSiteSettings,
   updateSiteSettings,
-  DEFAULT_SITE_SETTINGS,
-  migrateLargeActivityDocuments,
-  cleanupDuplicateActivityImages
+  DEFAULT_SITE_SETTINGS
 } from './lib/firebase';
 
 export default function App() {
@@ -126,18 +124,6 @@ export default function App() {
       }
     );
     return () => unsubscribe();
-  }, []);
-
-  // One-time safe migrations: oversized legacy documents and duplicated subcollection images
-  useEffect(() => {
-    try {
-      const alreadyChecked = sessionStorage.getItem('hiddenatlas_migration_checked');
-      if (!alreadyChecked) {
-        sessionStorage.setItem('hiddenatlas_migration_checked', 'true');
-        migrateLargeActivityDocuments().catch((e) => console.warn('Safe migration notice:', e));
-        cleanupDuplicateActivityImages().catch((e) => console.warn('Safe dedup notice:', e));
-      }
-    } catch {}
   }, []);
 
   // Real-time Firestore synchronization for activities with onSnapshot
@@ -317,7 +303,7 @@ export default function App() {
     <div
       dir={isAr ? 'rtl' : 'ltr'}
       lang={currentLang}
-      className={`min-h-screen bg-[#F8F5F0] text-[#2E2118] flex flex-col selection:bg-[#9C4A2F] selection:text-white ${
+      className={`min-h-screen bg-white text-[#2E2118] flex flex-col selection:bg-[#9C4A2F] selection:text-white ${
         isAr ? 'font-arabic-body' : 'font-body'
       }`}
     >
@@ -335,7 +321,7 @@ export default function App() {
         whatsappNumber={siteSettings.whatsappNumber}
       />
 
-      <main className="flex-1 bg-[#F8F5F0]">
+      <main className="flex-1 bg-white">
         {/* 2. Hero Section (Toubkal Visual Identity, mountain divider, sunrise orange CTA) */}
         <HeroSection
           currentLang={currentLang}
@@ -349,7 +335,7 @@ export default function App() {
         />
 
         {/* 3. Interactive Catalog Filter Bar */}
-        <div id="catalog-grid-section" className="bg-[#F8F5F0]">
+        <div id="catalog-grid-section" className="bg-white">
           <CategoryFilterBar
             currentLang={currentLang}
             selectedType={selectedType}
@@ -362,7 +348,7 @@ export default function App() {
         </div>
 
         {/* 4. Filtered Listings Grid */}
-        <section className="py-14 sm:py-20 bg-[#F8F5F0]">
+        <section className="py-14 sm:py-20 bg-white">
           <div className="max-w-7xl mx-auto px-3.5 sm:px-6 lg:px-8">
             <div className="flex items-center justify-between mb-8 sm:mb-10 flex-wrap gap-4">
               <div>

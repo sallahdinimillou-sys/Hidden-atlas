@@ -52,26 +52,32 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   const [currentSlide, setCurrentSlide] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
-  // Lazily load subcollection gallery images so card slider can display all user photos
+  // Defer subcollection gallery fetching until user interacts or idle to keep initial load instantaneous
+  const [hasRequestedGallery, setHasRequestedGallery] = useState(false);
+
+  const loadFullGallery = React.useCallback(() => {
+    if (hasRequestedGallery || !item.id || !item.hasSubcollectionImages) return;
+    setHasRequestedGallery(true);
+    fetchActivityImages(item.id).then((subImgs) => {
+      const valid = subImgs.filter((img) => Boolean(img) && !isStockPhoto(img));
+      if (valid.length > 0) {
+        setImages(deduplicateImages(valid));
+      }
+    });
+  }, [hasRequestedGallery, item.id, item.hasSubcollectionImages]);
+
+  // Gentle idle prefetch after 3 seconds without blocking initial render
   useEffect(() => {
-    let isMounted = true;
-    if (item.id && (item.hasSubcollectionImages || images.length <= 1)) {
-      fetchActivityImages(item.id).then((subImgs) => {
-        if (!isMounted) return;
-        const valid = subImgs.filter((img) => Boolean(img) && !isStockPhoto(img));
-        if (valid.length > 0) {
-          // Subcollection contains the full user images; replace thumbnail cleanly
-          setImages(deduplicateImages(valid));
-        }
-      });
-    }
-    return () => {
-      isMounted = false;
-    };
-  }, [item.id, item.hasSubcollectionImages]);
+    if (!item.id || !item.hasSubcollectionImages) return;
+    const timer = setTimeout(() => {
+      loadFullGallery();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [item.id, item.hasSubcollectionImages, loadFullGallery]);
 
   // Touch handlers for mobile swipe
   const handleTouchStart = (e: React.TouchEvent) => {
+    loadFullGallery();
     setTouchStartX(e.touches[0].clientX);
   };
 
@@ -145,6 +151,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   return (
     <div
       id={`card-${item.id}`}
+      onMouseEnter={loadFullGallery}
       className="group bg-white rounded-[14px] overflow-hidden border border-[#C98B4B]/20 shadow-[0_4px_18px_rgba(46,33,24,0.06)] hover:shadow-[0_10px_28px_rgba(46,33,24,0.12)] transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
     >
       {/* Media Top Container with Swipeable Slider */}
@@ -293,7 +300,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
             {loc.difficulty && (
               <>
                 <span className="text-[#C98B4B]/40">•</span>
-                <span className="px-1.5 py-0.2 rounded-[6px] bg-[#F8F5F0] text-[#9C4A2F] text-[10px] font-semibold border border-[#9C4A2F]/20">
+                <span className="px-1.5 py-0.2 rounded-[6px] bg-white text-[#9C4A2F] text-[10px] font-semibold border border-[#9C4A2F]/20">
                   {loc.difficulty}
                 </span>
               </>
@@ -373,7 +380,7 @@ export const ListingCard: React.FC<ListingCardProps> = ({
               id={`btn-view-details-${item.id}`}
               onClick={() => onViewDetails(item)}
               aria-label={`${t.viewDetails}: ${loc.title}`}
-              className="flex-1 xs:flex-none px-3.5 py-2.5 rounded-[10px] text-xs font-semibold text-[#9C4A2F] bg-[#F8F5F0] hover:bg-[#C98B4B]/15 border border-[#9C4A2F]/30 transition-colors shadow-2xs text-center min-h-[44px] flex items-center justify-center cursor-pointer font-body"
+              className="flex-1 xs:flex-none px-3.5 py-2.5 rounded-[10px] text-xs font-semibold text-[#9C4A2F] bg-white hover:bg-[#C98B4B]/15 border border-[#9C4A2F]/30 transition-colors shadow-2xs text-center min-h-[44px] flex items-center justify-center cursor-pointer font-body"
             >
               {t.viewDetails}
             </button>

@@ -9,7 +9,7 @@
     --font-arabic-body: 'Cairo', -apple-system, BlinkMacSystemFont, sans-serif;
 
     /* Toubkal & High Atlas Mountain Palette (Strictly ZERO blue) */
-    --color-snow-white: #F8F5F0;
+    --color-snow-white: #FFFFFF;
     --color-atlas-rock-red: #9C4A2F;
     --color-mountain-ochre: #C98B4B;
     --color-dark-rock-brown: #2E2118;
@@ -24,12 +24,12 @@
     --color-secondary: #C98B4B;
     --color-accent: #E5733A;
     --color-nature: #55663A;
-    --color-surface: #F8F5F0;
+    --color-surface: #FFFFFF;
     --color-text: #2E2118;
   }
 
   html {
-    background-color: #F8F5F0 !important;
+    background-color: #FFFFFF !important;
     color: #2E2118;
     color-scheme: light;
     overflow-x: clip;
@@ -40,7 +40,7 @@
 
   body {
     font-family: var(--font-body);
-    background-color: #F8F5F0 !important;
+    background-color: #FFFFFF !important;
     color: #2E2118;
     color-scheme: light;
     min-height: 100dvh;
@@ -51,7 +51,7 @@
   }
 
   #root {
-    background-color: #F8F5F0 !important;
+    background-color: #FFFFFF !important;
     color: #2E2118;
     min-height: 100dvh;
     color-scheme: light;
@@ -60,7 +60,7 @@
   /* Force light snow-white background even if phone/system is set to dark mode */
   @media (prefers-color-scheme: dark) {
     html, body, #root {
-      background-color: #F8F5F0 !important;
+      background-color: #FFFFFF !important;
       color: #2E2118 !important;
       color-scheme: light !important;
     }
@@ -330,7 +330,7 @@
   height: 8px;
 }
 ::-webkit-scrollbar-track {
-  background: #F8F5F0;
+  background: #FFFFFF;
 }
 ::-webkit-scrollbar-thumb {
   background: #C98B4B;

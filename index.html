@@ -52,20 +52,24 @@
     <!-- Canonical Tag -->
     <link rel="canonical" href="https://hidenatlas.vercel.app/" />
 
-    <!-- Preload Critical Hero Background Image -->
+    <!-- Preload Critical Hero Background Image (Optimized Local WebP) -->
     <link 
       rel="preload" 
       as="image" 
-      href="https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&w=1400&q=80" 
-      imagesrcset="https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&w=800&q=80 800w, https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&w=1920&q=80 1920w"
+      href="/assets/hero-atlas.webp" 
+      imagesrcset="/assets/hero-atlas-mobile.webp 640w, /assets/hero-atlas.webp 1280w"
       imagesizes="100vw"
       fetchpriority="high" 
     />
 
-    <!-- Typography: Efficient Google Fonts with font-display: swap and essential weights only -->
+    <!-- Typography: Asynchronous Non-Blocking Google Fonts with font-display: swap -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700&family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700&family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap">
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700&family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'">
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cairo:wght@600;700&family=Playfair+Display:wght@700;900&family=Poppins:wght@400;500;600;700&display=swap">
+    </noscript>
 
     <!-- Schema.org JSON-LD Structured Data for Local Tour Operator & Tour Catalog -->
     <script type="application/ld+json">

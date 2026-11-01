@@ -1275,7 +1275,7 @@ export const DEFAULT_SITE_SETTINGS: SiteSettings = {
   whatsappDisplay: '0662634926',
   facebookUrl: 'https://www.facebook.com/share/18k4njmMaP/?mibextid=wwXIfr',
   instagramUrl: 'https://www.instagram.com/amalo_hossain?obrf=aDd4N2gwNTAyZTd5&utm_source=qr',
-  heroImageUrl: 'https://images.unsplash.com/photo-1489749798305-4fea3ae63d43?auto=format&fit=crop&w=2600&q=85',
+  heroImageUrl: '/assets/hero-atlas.webp',
   guideName: 'Hossain Amalo',
   guideRole: 'Your Local Tour Guide in Morocco',
   guideBio: 'Born and raised in the High Atlas Mountains at the foot of Mount Toubkal, with over 12 years of mountain trekking, desert guiding, and sharing genuine Berber hospitality.',
