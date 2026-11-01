@@ -363,21 +363,17 @@ export async function storeActivityImages(
   }
   const finalImageEntries: ImageEntry[] = [];
 
-  // Process existing images
+  // Process existing images: preserve directly WITHOUT lossy re-encoding
   for (let i = 0; i < cleanExisting.length; i++) {
     const url = cleanExisting[i];
     if (url.startsWith('http://') || url.startsWith('https://')) {
       finalImageEntries.push({ fullDataUrlOrHttp: url, thumbnailUrl: url });
     } else if (url.startsWith('data:')) {
-      try {
-        const pkg = await processActivityImage(url);
-        finalImageEntries.push({
-          fullDataUrlOrHttp: pkg.full.dataUrl,
-          thumbnailUrl: pkg.thumbnail.dataUrl
-        });
-      } catch (err) {
-        finalImageEntries.push({ fullDataUrlOrHttp: url });
-      }
+      // Keep existing processed base64 image intact to prevent generation quality loss!
+      finalImageEntries.push({
+        fullDataUrlOrHttp: url,
+        thumbnailUrl: url
+      });
     }
   }
 

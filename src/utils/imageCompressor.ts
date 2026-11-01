@@ -81,8 +81,8 @@ export async function compressImageToBudget(
   const {
     maxDimension,
     maxBytes,
-    initialQuality = 0.82,
-    minQuality = 0.35,
+    initialQuality = 0.88,
+    minQuality = 0.70,
     forceJpeg = false
   } = options;
 
@@ -119,7 +119,11 @@ export async function compressImageToBudget(
     canvas.width = currentWidth;
     canvas.height = currentHeight;
 
-    // Fill white background for clean transparency handling
+    // Enable high-fidelity bicubic smoothing for crisp downscaling
+    ctx.imageSmoothingEnabled = true;
+    ctx.imageSmoothingQuality = 'high';
+
+    // Fill clean neutral white background
     ctx.fillStyle = '#FFFFFF';
     ctx.fillRect(0, 0, currentWidth, currentHeight);
     ctx.drawImage(img, 0, 0, currentWidth, currentHeight);
@@ -131,19 +135,19 @@ export async function compressImageToBudget(
     if (blob) {
       bestBlob = blob;
       if (blob.size <= maxBytes) {
-        break; // Fits perfectly under budget!
+        break; // Fits within target budget!
       }
     }
 
-    // If still too large, reduce quality step-by-step
+    // Gentle quality reduction (step 0.05) to protect image sharpness
     if (currentQuality > minQuality) {
-      currentQuality = Math.max(minQuality, currentQuality - 0.12);
+      currentQuality = Math.max(minQuality, currentQuality - 0.05);
     } else {
-      // If quality is already at minimum, reduce dimensions by 15%
-      currentWidth = Math.round(currentWidth * 0.85);
-      currentHeight = Math.round(currentHeight * 0.85);
-      if (currentWidth < 200 || currentHeight < 200) {
-        break; // Stop if too small
+      // If quality reached floor, reduce dimensions gently by 8%
+      currentWidth = Math.round(currentWidth * 0.92);
+      currentHeight = Math.round(currentHeight * 0.92);
+      if (currentWidth < 450 || currentHeight < 450) {
+        break; // Never shrink below 450px
       }
     }
   }
@@ -165,26 +169,27 @@ export async function compressImageToBudget(
 }
 
 /**
- * Creates both a full optimized image (max 1280px, <= 150 KB)
- * and a lightweight thumbnail (max 400px, <= 30 KB)
+ * Creates high-fidelity activity image package:
+ * - Full image: max 1920px (Full HD), <= 450 KB, high visual clarity
+ * - Thumbnail: max 800px (retina sharp), <= 85 KB
  */
 export async function processActivityImage(
   source: File | Blob | string
 ): Promise<ActivityImagePackage> {
-  // 1. Process full detail image: max 1280px, target <= 150 KB
+  // 1. Process full detail image: max 1920px, target <= 450 KB (well within 1MB Firestore subcollection limit)
   const full = await compressImageToBudget(source, {
-    maxDimension: 1280,
-    maxBytes: 150 * 1024, // 150 KB
-    initialQuality: 0.80,
-    minQuality: 0.38
+    maxDimension: 1920,
+    maxBytes: 450 * 1024,
+    initialQuality: 0.88,
+    minQuality: 0.72
   });
 
-  // 2. Process thumbnail: max 400px, target <= 30 KB
+  // 2. Process thumbnail: max 800px (retina crisp on mobile & cards), target <= 85 KB
   const thumbnail = await compressImageToBudget(source, {
-    maxDimension: 400,
-    maxBytes: 30 * 1024, // 30 KB
-    initialQuality: 0.72,
-    minQuality: 0.35
+    maxDimension: 800,
+    maxBytes: 85 * 1024,
+    initialQuality: 0.85,
+    minQuality: 0.68
   });
 
   return { full, thumbnail };
