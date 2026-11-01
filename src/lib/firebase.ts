@@ -464,7 +464,7 @@ export async function storeActivityImages(
   for (let i = 0; i < uniqueEntries.length; i++) {
     const entry = uniqueEntries[i];
     if (i === 0) {
-      primaryThumbnail = entry.thumbnailUrl || entry.fullDataUrlOrHttp;
+      primaryThumbnail = entry.fullDataUrlOrHttp;
     }
 
     if (entry.fullDataUrlOrHttp.startsWith('http://') || entry.fullDataUrlOrHttp.startsWith('https://')) {

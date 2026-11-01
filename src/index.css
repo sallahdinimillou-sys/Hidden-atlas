@@ -66,6 +66,10 @@
     }
   }
 
+  img {
+    image-rendering: -webkit-optimize-contrast;
+  }
+
   button, a, input, select, textarea {
     touch-action: manipulation;
   }

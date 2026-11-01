@@ -52,32 +52,36 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   const [currentSlide, setCurrentSlide] = useState(0);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
 
-  // Defer subcollection gallery fetching until user interacts or idle to keep initial load instantaneous
-  const [hasRequestedGallery, setHasRequestedGallery] = useState(false);
-
-  const loadFullGallery = React.useCallback(() => {
-    if (hasRequestedGallery || !item.id || !item.hasSubcollectionImages) return;
-    setHasRequestedGallery(true);
-    fetchActivityImages(item.id).then((subImgs) => {
-      const valid = subImgs.filter((img) => Boolean(img) && !isStockPhoto(img));
-      if (valid.length > 0) {
-        setImages(deduplicateImages(valid));
-      }
-    });
-  }, [hasRequestedGallery, item.id, item.hasSubcollectionImages]);
-
-  // Gentle idle prefetch after 3 seconds without blocking initial render
+  // Sync images state with item.imageUrl from Firestore
   useEffect(() => {
-    if (!item.id || !item.hasSubcollectionImages) return;
-    const timer = setTimeout(() => {
-      loadFullGallery();
-    }, 3000);
-    return () => clearTimeout(timer);
-  }, [item.id, item.hasSubcollectionImages, loadFullGallery]);
+    const list = [item.imageUrl, ...(item.gallery || [])].filter((url) => Boolean(url) && !isStockPhoto(url));
+    if (list.length > 0) {
+      setImages((prev) => {
+        if (prev.length > 1 && prev[0] === list[0]) return prev;
+        return deduplicateImages(list);
+      });
+    }
+  }, [item.imageUrl, item.gallery]);
+
+  // Load full high-res subcollection gallery immediately so cards are crisp from first view
+  useEffect(() => {
+    let isMounted = true;
+    if (item.id && item.hasSubcollectionImages) {
+      fetchActivityImages(item.id).then((subImgs) => {
+        if (!isMounted) return;
+        const valid = subImgs.filter((img) => Boolean(img) && !isStockPhoto(img));
+        if (valid.length > 0) {
+          setImages(deduplicateImages(valid));
+        }
+      });
+    }
+    return () => {
+      isMounted = false;
+    };
+  }, [item.id, item.hasSubcollectionImages]);
 
   // Touch handlers for mobile swipe
   const handleTouchStart = (e: React.TouchEvent) => {
-    loadFullGallery();
     setTouchStartX(e.touches[0].clientX);
   };
 
@@ -151,7 +155,6 @@ export const ListingCard: React.FC<ListingCardProps> = ({
   return (
     <div
       id={`card-${item.id}`}
-      onMouseEnter={loadFullGallery}
       className="group bg-white rounded-[14px] overflow-hidden border border-[#C98B4B]/20 shadow-[0_4px_18px_rgba(46,33,24,0.06)] hover:shadow-[0_10px_28px_rgba(46,33,24,0.12)] transition-all duration-300 flex flex-col justify-between hover:-translate-y-1"
     >
       {/* Media Top Container with Swipeable Slider */}
